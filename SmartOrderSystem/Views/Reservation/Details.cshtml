@@ -1,0 +1,204 @@
+@model SmartOrderSystem.Models.CustomerReservationDetailsViewModel
+@{
+    ViewData["Title"] = "Reservation Details";
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+}
+
+<div class="shop-container py-4">
+
+    <nav class="small text-muted mb-2">
+        <a href="/Shop/Index" class="text-decoration-none text-muted">Home</a> &gt;
+        <a href="/Reservation" class="text-decoration-none text-muted">Reservations</a> &gt;
+        <span>@Model.ReservationCode</span>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Reservation Details</h2>
+            <p class="text-muted mb-0">View your reservation information and status.</p>
+        </div>
+       <a asp-controller="Reservation" asp-action="Index" class="btn btn-shop-outline-sm">
+    <i class="ti ti-arrow-left"></i> Back to Reservations
+</a>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- LEFT: OVERVIEW -->
+        <div class="col-lg-7">
+            <div class="detail-panel mb-4">
+                <h6 class="fw-bold mb-3"><i class="ti ti-calendar-check text-danger"></i> RESERVATION OVERVIEW</h6>
+
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <span class="badge bg-success-subtle text-success mb-2">@(Model.Status == "Pending" || Model.Status == "Approved" ? "ACTIVE" : Model.Status.ToUpper())</span>
+                        <img id="mainReservationImg" src="@Model.ImagePaths.First()" class="w-100 rounded mb-2" />
+                        <div class="row g-2">
+                            @foreach (var img in Model.ImagePaths)
+                            {
+                                <div class="col-3">
+                                    <img src="@img" class="thumb-img rounded @(img == Model.ImagePaths.First() ? "active" : "")"
+                                         onclick="document.getElementById('mainReservationImg').src='@img';
+                                                  document.querySelectorAll('.thumb-img').forEach(t => t.classList.remove('active'));
+                                                  this.classList.add('active');" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <h4 class="fw-bold mb-1">@Model.ShoeName</h4>
+                        <p class="text-muted mb-3">@Model.Brand · @Model.Category</p>
+
+                        <div class="row row-cols-2 g-2 mb-3">
+                            <div><span class="small text-muted d-block">Size</span><span class="fw-semibold">@Model.Size.ToString("0.#")</span></div>
+                            <div><span class="small text-muted d-block">Quantity</span><span class="fw-semibold">@Model.Quantity</span></div>
+                            <div><span class="small text-muted d-block">Price</span><span class="fw-semibold text-danger">₱@Model.Price.ToString("N2")</span></div>
+                            <div><span class="small text-muted d-block">Total</span><span class="fw-semibold text-danger">₱@Model.TotalPrice.ToString("N2")</span></div>
+                        </div>
+
+                        <hr />
+
+                        <div class="row row-cols-2 g-2">
+                            @if (!string.IsNullOrEmpty(Model.Color))
+                            {
+                                <div><span class="small text-muted d-block">Colorway</span><span>@Model.Color</span></div>
+                            }
+                            <div><span class="small text-muted d-block">Category</span><span>@Model.Category</span></div>
+                            <div><span class="small text-muted d-block">Brand</span><span>@Model.Brand</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-panel">
+                <h6 class="fw-bold mb-3"><i class="ti ti-bell text-danger"></i> IMPORTANT REMINDERS</h6>
+                <ul class="reminder-list mb-0">
+                    <li><i class="ti ti-check text-danger"></i> Your reservation will expire 72 hours from the time it was created.</li>
+                    <li><i class="ti ti-check text-danger"></i> Complete your order before the expiration to secure your item.</li>
+                    <li><i class="ti ti-check text-danger"></i> Once expired, the item will be available again for other customers.</li>
+                    <li><i class="ti ti-check text-danger"></i> For assistance, contact our customer support.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- RIGHT: INFO + TIMELINE -->
+        <div class="col-lg-5">
+            <div class="detail-panel mb-4">
+                <h6 class="fw-bold mb-3"><i class="ti ti-info-circle text-danger"></i> RESERVATION INFORMATION</h6>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted small">Reservation ID</span>
+                    <span class="fw-semibold">@Model.ReservationCode</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted small">Reserved on</span>
+                    <span>@Model.ReservationDate.ToString("MMM dd, yyyy · h:mm tt")</span>
+                </div>
+                @if (Model.ExpiresAt.HasValue)
+                {
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted small">Expires on</span>
+                        <span class="text-danger">@Model.ExpiresAt.Value.ToString("MMM dd, yyyy · h:mm tt")</span>
+                    </div>
+
+                    @if (Model.Status == "Pending" || Model.Status == "Approved")
+                    {
+                        <div class="countdown-box mb-3 text-center" data-expires="@Model.ExpiresAt.Value.ToString("o")">
+                            <span class="small text-danger"><i class="ti ti-clock"></i> Expires in</span>
+                            <div class="countdown-timer fw-bold text-danger fs-5">--</div>
+                        </div>
+                    }
+                }
+
+                <hr />
+
+                <h6 class="fw-bold mb-3 mt-3">Reservation Status</h6>
+                <ul class="status-timeline">
+                    <li class="done">
+                        <span class="dot"></span>
+                        <div>
+                            <strong>Reservation Created</strong>
+                            <div class="small text-muted">@Model.ReservationDate.ToString("MMM dd, yyyy · h:mm tt")</div>
+                        </div>
+                    </li>
+                    <li class="@(Model.Status != "Pending" ? "done" : "")">
+                        <span class="dot"></span>
+                        <div>
+                            <strong>Product Reserved</strong>
+                            <div class="small text-muted">
+                                @(Model.ApprovedAt.HasValue ? Model.ApprovedAt.Value.ToString("MMM dd, yyyy · h:mm tt") : "Pending approval")
+                            </div>
+                        </div>
+                    </li>
+                    <li class="@(Model.Status == "Converted" ? "done" : Model.Status == "Approved" ? "current" : "")">
+                        <span class="dot"></span>
+                        <div>
+                            <strong>Waiting for Checkout</strong>
+                            <div class="small text-muted">Complete your order before the reservation expires.</div>
+                        </div>
+                    </li>
+                    <li class="@(Model.Status == "Converted" ? "done" : "")">
+                        <span class="dot"></span>
+                        <div>
+                            <strong>Completed</strong>
+                            <div class="small text-muted">Your order will be marked as completed.</div>
+                        </div>
+                    </li>
+                </ul>
+
+                @if (Model.Status == "Approved")
+                {
+                    <a href="/Reservation/Checkout/@Model.ReservationId" class="btn btn-shop-primary w-100 mb-2">Proceed to Order</a>
+                    <form asp-action="Cancel" asp-route-id="@Model.ReservationId" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-shop-outline w-100" onclick="return confirm('Cancel this reservation?')">
+                            <i class="ti ti-trash"></i> Cancel Reservation
+                        </button>
+                    </form>
+                }
+                else if (Model.Status == "Pending")
+                {
+                    <form asp-action="Cancel" asp-route-id="@Model.ReservationId" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-shop-outline w-100" onclick="return confirm('Cancel this reservation?')">
+                            <i class="ti ti-trash"></i> Cancel Reservation
+                        </button>
+                    </form>
+                }
+            </div>
+
+            <div class="secure-box">
+                <i class="ti ti-shield-check text-danger fs-3"></i>
+                <div>
+                    <strong>Secure Reservation</strong>
+                    <p class="small text-muted mb-0">We've reserved this item just for you. Don't miss out!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown-box').forEach(box => {
+            const expiresAt = new Date(box.dataset.expires);
+            const now = new Date();
+            const diff = expiresAt - now;
+            const timerEl = box.querySelector('.countdown-timer');
+
+            if (diff <= 0) {
+                timerEl.innerText = 'Expired';
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            timerEl.innerText = `${hours}h ${minutes}m ${seconds}s`;
+        });
+    }
+
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+</script>

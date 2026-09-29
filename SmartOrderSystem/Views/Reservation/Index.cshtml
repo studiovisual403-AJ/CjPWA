@@ -1,0 +1,170 @@
+@model SmartOrderSystem.Models.ReservationListViewModel
+@{
+    ViewData["Title"] = "My Reservations";
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+}
+
+<div class="shop-container py-4">
+
+    <h2 class="fw-bold mb-1">My Reservations</h2>
+    <p class="text-muted mb-4">Track and manage your reserved products.</p>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-2">
+        <div class="d-flex gap-4 reservation-tabs">
+             <a asp-action="Index" asp-route-tab="All" asp-route-sort="@Model.CurrentSort"
+                class="@(Model.CurrentTab == "All" ? "active fw-bold" : "")">All (@Model.AllCount)</a>
+             <a asp-action="Index" asp-route-tab="Active" asp-route-sort="@Model.CurrentSort"
+                class="@(Model.CurrentTab == "Active" ? "active fw-bold" : "")">Active (@Model.ActiveCount)</a>
+             <a asp-action="Index" asp-route-tab="Completed" asp-route-sort="@Model.CurrentSort"
+                class="@(Model.CurrentTab == "Completed" ? "active fw-bold" : "")">Completed (@Model.CompletedCount)</a>
+             <a asp-action="Index" asp-route-tab="Expired" asp-route-sort="@Model.CurrentSort"
+                class="@(Model.CurrentTab == "Expired" ? "active fw-bold" : "")">Expired (@Model.ExpiredCount)</a>
+             <a asp-action="Index" asp-route-tab="Cancelled" asp-route-sort="@Model.CurrentSort"
+                class="@(Model.CurrentTab == "Cancelled" ? "active fw-bold" : "")">Cancelled (@Model.CancelledCount)</a>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0">Sort by:</label>
+            <select class="form-select form-select-sm" style="width:auto;"
+                onchange="location.href='@Url.Action("Index")?tab=@Model.CurrentTab&sort=' + this.value">
+                <option value="recent" selected="@(Model.CurrentSort == "recent")">Recently Added</option>
+                <option value="oldest" selected="@(Model.CurrentSort == "oldest")">Oldest First</option>
+                <option value="expiring" selected="@(Model.CurrentSort == "expiring")">Expiring Soon</option>
+            </select>
+        </div>
+    </div>
+
+    @if (Model.ActiveReservations.Any())
+    {
+        <h6 class="fw-bold text-danger mb-3"><i class="ti ti-clock"></i> ACTIVE RESERVATION</h6>
+
+        @foreach (var r in Model.ActiveReservations)
+        {
+            <div class="reservation-card mb-4">
+                <div class="row g-0 reservation-card-content">
+                    <div class="col-md-3">
+                        <img src="@(string.IsNullOrEmpty(r.ImagePath) ? "/images/no-image.png" : r.ImagePath)" class="reservation-thumb" />
+                    </div>
+                    <div class="col-md-5 p-3">
+                        <span class="badge bg-success-subtle text-success mb-2">ACTIVE</span>
+                        <h5 class="fw-bold mb-1">@r.ShoeName</h5>
+                        <p class="text-muted small mb-2">@r.Brand · @r.Category</p>
+                        <p class="mb-1 small">Size: <span class="fw-semibold">@r.Size.ToString("0.#")</span></p>
+                        <p class="mb-2 small">Quantity: <span class="fw-semibold">@r.Quantity</span></p>
+                        <div class="detail-price">₱@r.TotalPrice.ToString("N2")</div>
+                    </div>
+                    <div class="col-md-4 p-3 border-start">
+                        <p class="small text-muted mb-1">Reservation ID</p>
+                        <p class="fw-semibold mb-2">@r.ReservationCode</p>
+
+                        <p class="small text-muted mb-1">Reserved on</p>
+                        <p class="mb-2">@r.ReservationDate.ToString("MMM dd, yyyy · h:mm tt")</p>
+
+                        @if (r.ExpiresAt.HasValue)
+                        {
+                            <p class="small text-muted mb-1">Expires on</p>
+                            <p class="text-danger mb-2">@r.ExpiresAt.Value.ToString("MMM dd, yyyy · h:mm tt")</p>
+
+                            <div class="countdown-box mb-3" data-expires="@r.ExpiresAt.Value.ToString("o")">
+                                <span class="small text-danger"><i class="ti ti-clock"></i> Expires in</span>
+                                <div class="countdown-timer fw-bold text-danger">--</div>
+                            </div>
+                        }
+
+                        <div class="d-flex gap-2">
+                            <a href="/Reservation/Details/@r.ReservationId" class="btn btn-shop-outline-sm flex-fill">View Details</a>
+                            <form asp-action="Cancel" asp-route-id="@r.ReservationId" method="post" class="flex-fill">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-shop-primary-sm w-100" onclick="return confirm('Cancel this reservation?')">Cancel Reservation</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (Model.HistoryReservations.Any())
+    {
+        <h6 class="fw-bold mb-3">RESERVATION HISTORY</h6>
+
+        @foreach (var r in Model.HistoryReservations)
+        {
+            string statusClass = r.Status switch
+            {
+                "Converted" => "bg-success-subtle text-success",
+                "Expired" => "bg-secondary-subtle text-secondary",
+                "Cancelled" => "bg-danger-subtle text-danger",
+                _ => "bg-light text-dark"
+            };
+            string statusLabel = r.Status == "Converted" ? "COMPLETED" : r.Status.ToUpper();
+
+            <div class="reservation-card mb-3">
+                <div class="row g-0 reservation-card-content">
+                    <div class="col-md-3">
+                        <img src="@(string.IsNullOrEmpty(r.ImagePath) ? "/images/no-image.png" : r.ImagePath)" class="reservation-thumb" />
+                    </div>
+                    <div class="col-md-5 p-3">
+                        <h5 class="fw-bold mb-1">@r.ShoeName</h5>
+                        <p class="text-muted small mb-2">@r.Brand · @r.Category</p>
+                        <p class="mb-1 small">Size: <span class="fw-semibold">@r.Size.ToString("0.#")</span></p>
+                        <p class="mb-2 small">Quantity: <span class="fw-semibold">@r.Quantity</span></p>
+                        <div class="detail-price">₱@r.TotalPrice.ToString("N2")</div>
+                    </div>
+                    <div class="col-md-4 p-3 border-start">
+                        <span class="badge @statusClass mb-2">@statusLabel</span>
+                        <p class="small text-muted mb-1">Reserved on</p>
+                        <p class="mb-2">@r.ReservationDate.ToString("MMM dd, yyyy")</p>
+
+                        @if (r.ApprovedAt.HasValue)
+                        {
+                            <p class="small text-muted mb-1">Updated on</p>
+                            <p class="mb-2">@r.ApprovedAt.Value.ToString("MMM dd, yyyy")</p>
+                        }
+
+                        <a href="/Reservation/Details/@r.ReservationId" class="btn btn-shop-outline-sm w-100">View Details</a>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    @if (!Model.ActiveReservations.Any() && !Model.HistoryReservations.Any())
+    {
+        <p class="text-muted">No reservations in this category yet.</p>
+    }
+</div>
+
+<script>
+    function updateCountdowns() {
+        document.querySelectorAll('.countdown-box').forEach(box => {
+            const expiresAt = new Date(box.dataset.expires);
+            const now = new Date();
+            const diff = expiresAt - now;
+            const timerEl = box.querySelector('.countdown-timer');
+
+            if (diff <= 0) {
+                timerEl.innerText = 'Expired';
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            timerEl.innerText = `${hours}h ${minutes}m ${seconds}s`;
+        });
+    }
+
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+</script>

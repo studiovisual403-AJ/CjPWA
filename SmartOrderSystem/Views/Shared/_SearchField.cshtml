@@ -1,0 +1,11 @@
+@model (string FieldName, string Value, string Placeholder, string WrapperClass, string InputClass, string IconClass, bool AutoFocus)
+
+<div class="@Model.WrapperClass">
+    <i class="@Model.IconClass" aria-hidden="true"></i>
+    <input type="text"
+           name="@Model.FieldName"
+           value="@Model.Value"
+           placeholder="@Model.Placeholder"
+           class="@Model.InputClass"
+           @(Model.AutoFocus ? "autofocus" : null) />
+</div>

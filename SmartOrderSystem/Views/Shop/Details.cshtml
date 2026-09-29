@@ -1,0 +1,281 @@
+@model SmartOrderSystem.Models.ProductDetailsViewModel
+@{
+    ViewData["Title"] = Model.ModelName;
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+}
+
+<div class="shop-container py-4">
+
+    <a href="/Shop/Products" class="d-inline-flex align-items-center gap-1 text-decoration-none text-dark mb-3">
+        <i class="ti ti-arrow-left"></i> Back to Products
+    </a>
+
+    <div class="row g-5">
+
+        <!-- GALLERY -->
+        <div class="col-lg-6">
+            <div class="detail-main-img mb-3">
+                <img id="mainProductImg" src="@Model.ImagePaths.First()" alt="@Model.ModelName" class="w-100 rounded" />
+            </div>
+            <div class="row g-2">
+                @foreach (var img in Model.ImagePaths)
+                {
+                    <div class="col-3">
+                        <img src="@img" class="thumb-img rounded @(img == Model.ImagePaths.First() ? "active" : "")"
+                             onclick="document.getElementById('mainProductImg').src='@img';
+                                      document.querySelectorAll('.thumb-img').forEach(t => t.classList.remove('active'));
+                                      this.classList.add('active');" />
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- DETAILS -->
+        <div class="col-lg-6">
+            <h2 class="fw-bold mb-1">@Model.ModelName</h2>
+            <p class="text-muted mb-2">@Model.Category</p>
+            @Html.AntiForgeryToken()
+            @if (Model.RatingCount > 0)
+            {
+                <div class="d-flex align-items-center gap-1 mb-2">
+                    @for (int i = 1; i <= 5; i++)
+                    {
+                        <i class="ti @(i <= Math.Round(Model.AvgRating) ? "ti-star-filled" : "ti-star") text-warning"></i>
+                    }
+                    <span class="small text-muted">@Model.AvgRating.ToString("0.0") (@Model.RatingCount ratings)</span>
+                </div>
+            }
+
+            <div class="detail-price mb-4">
+                ₱@Model.Price.ToString("N2")
+                @if (Model.DiscountPercentage.HasValue)
+                {
+                    <small class="text-muted text-decoration-line-through">₱@Model.OriginalPrice.ToString("N2")</small>
+                }
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">Select Size (PH)</span>
+                <a href="#" class="small text-danger text-decoration-none" data-bs-toggle="modal" data-bs-target="#sizeGuideModal">
+                    <i class="ti ti-ruler-2"></i> Size Guide
+                </a>
+            </div>
+
+            <div class="row g-2 mb-4" id="sizeGrid">
+                @foreach (var s in Model.Sizes)
+                {
+                    bool outOfStock = s.Stock == 0;
+                    <div class="col-3">
+                        <div class="size-box @(outOfStock ? "disabled" : "")"
+                             data-size="@s.Size.ToString("0.#")" data-stock="@s.Stock" data-inventory-id="@s.InventoryId"
+                             onclick="@(outOfStock ? "" : "selectSize(this)")">
+                            <div class="fw-semibold">@s.Size.ToString("0.#")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div id="stockWarning" class="small text-danger mb-3" style="display:none;"></div>
+
+            <div class="mb-4">
+                <span class="fw-semibold d-block mb-2">Quantity</span>
+                <div class="qty-selector d-inline-flex align-items-center">
+                    <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+                    <input type="number" id="qtyInput" value="1" min="1" class="qty-input" readonly />
+                    <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-shop-dark flex-fill" onclick="addToCart()"><i class="ti ti-shopping-cart"></i> Add to Cart</button>
+                <button type="button" class="btn btn-shop-primary flex-fill" onclick="proceedToOrder()"><i class="ti ti-receipt"></i> Order</button>
+
+                <form asp-controller="Reservation" asp-action="Create" method="post" class="d-flex flex-fill">
+                    <input type="hidden" name="inventoryId" id="reserveInventoryId" />
+                    <input type="hidden" name="quantity" id="reserveQuantity" />
+
+                    <button type="submit" class="btn btn-shop-primary flex-fill" onclick="return prepareReservation()">
+                        <i class="ti ti-calendar-check"></i> Reservations
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SIZE GUIDE MODAL -->
+<div class="modal fade" id="sizeGuideModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Size Guide (PH)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Size (PH)</th>
+                            <th>Foot Length (cm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Sizes)
+                        {
+                            <tr>
+                                <td>@s.Size.ToString("0.#")</td>
+                                <td>@(s.Cm.HasValue ? s.Cm.Value.ToString("0.0") + " cm" : "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <p class="small text-muted mb-0">Tip: Measure your foot length from the heel to the big toe using a ruler or measuring tape for the most accurate fit.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedStock = 0;
+    let selectedSize = null;
+
+    function showToast(type, message) {
+        let toast = document.getElementById('shopToast');
+
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'shopToast';
+            toast.className = 'shop-toast';
+            document.body.appendChild(toast);
+        }
+
+        toast.className = `shop-toast show ${type || 'success'}`;
+        toast.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between gap-3">
+                <span>${message}</span>
+                <button type="button" class="shop-toast-close" aria-label="Dismiss">×</button>
+            </div>
+        `;
+
+        const closeButton = toast.querySelector('.shop-toast-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => toast.classList.remove('show'));
+        }
+
+        clearTimeout(toast.hideTimer);
+        toast.hideTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2800);
+    }
+
+    function selectSize(el) {
+        document.querySelectorAll('.size-box').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+
+        selectedSize = el.dataset.size;
+        selectedStock = parseInt(el.dataset.stock);
+
+        const warning = document.getElementById('stockWarning');
+        const qtyInput = document.getElementById('qtyInput');
+        qtyInput.value = 1;
+
+        if (selectedStock <= 3) {
+            warning.style.display = 'block';
+            warning.innerText = `Only ${selectedStock} left in stock for size ${selectedSize}`;
+        } else {
+            warning.style.display = 'none';
+        }
+    }
+
+    function changeQty(delta) {
+        const qtyInput = document.getElementById('qtyInput');
+        let val = parseInt(qtyInput.value) + delta;
+
+        if (val < 1) val = 1;
+        if (selectedStock > 0 && val > selectedStock) val = selectedStock;
+
+        qtyInput.value = val;
+    }
+
+    function prepareReservation() {
+        if (!selectedSize) {
+            showToast('warning', 'Please select a size first.');
+            return false;
+        }
+
+        const selectedBox = document.querySelector('.size-box.active');
+        const inventoryId = selectedBox.dataset.inventoryId;
+        const qty = document.getElementById('qtyInput').value;
+
+        document.getElementById('reserveInventoryId').value = inventoryId;
+        document.getElementById('reserveQuantity').value = qty;
+
+        return true;
+    }
+
+    function proceedToOrder() {
+        if (!selectedSize) {
+            showToast('warning', 'Please select a size first.');
+            return;
+        }
+
+        const selectedBox = document.querySelector('.size-box.active');
+        const inventoryId = selectedBox.dataset.inventoryId;
+        const qty = document.getElementById('qtyInput').value;
+
+        window.location.href = `/Checkout/Delivery?inventoryId=${inventoryId}&quantity=${qty}`;
+    }
+
+    async function addToCart() {
+        if (!selectedSize) {
+            showToast('warning', 'Please select a size first.');
+            return;
+        }
+
+        const selectedBox = document.querySelector('.size-box.active');
+        if (!selectedBox) {
+            showToast('warning', 'Please select a size first.');
+            return;
+        }
+
+        const inventoryId = selectedBox.dataset.inventoryId;
+        const qty = document.getElementById('qtyInput').value;
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+        const formData = new URLSearchParams();
+        formData.append('inventoryId', inventoryId);
+        formData.append('quantity', qty);
+
+        try {
+            const res = await fetch('/Cart/AddToCart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (data.redirectToLogin) {
+                window.location.href = '/Account/Login';
+                return;
+            }
+
+            if (data.success) {
+                const badge = document.querySelector('.cart-badge');
+                if (badge) {
+                    badge.textContent = data.cartCount;
+                }
+                showToast('success', 'Added to cart!');
+                return;
+            }
+
+            showToast('error', data.message || 'Unable to add to cart.');
+        } catch (error) {
+            showToast('error', 'Unable to add to cart right now.');
+        }
+    }
+</script>
+

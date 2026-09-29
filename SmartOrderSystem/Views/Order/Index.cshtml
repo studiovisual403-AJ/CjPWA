@@ -1,0 +1,131 @@
+@model SmartOrderSystem.ViewModels.CustomerOrderListViewModel
+
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    
+    ViewData["Title"] = "My Orders";
+
+    string BadgeClass(string status) => status switch
+    {
+        "Pending" => "bg-warning text-dark",
+        "Confirmed" => "bg-primary",
+        "Preparing" => "bg-info text-dark",
+        "In Transit" => "bg-purple text-white",
+        "Delivered" => "bg-success",
+        "Completed" => "bg-success",
+        "Cancelled" => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    string ActionLabel(string status) => status switch
+    {
+        "In Transit" => "Track Order",
+        _ => "View Details"
+    };
+}
+
+<div class="container-fluid p-4">
+
+    <div class="mb-3">
+        <h2 class="fw-bold mb-1">My Orders</h2>
+        <p class="text-muted mb-0">View and manage your current and previous orders.</p>
+    </div>
+
+    <!-- Tabs + Sort -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-2">
+        <div class="d-flex gap-4 flex-wrap order-tabs">
+            <a asp-action="Index" asp-route-tab="All" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "All" ? "active fw-bold" : "")">All Orders (@Model.AllCount)</a>
+            <a asp-action="Index" asp-route-tab="Pending" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Pending" ? "active fw-bold" : "")">Pending (@Model.PendingCount)</a>
+            <a asp-action="Index" asp-route-tab="Confirmed" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Confirmed" ? "active fw-bold" : "")">Confirmed (@Model.ConfirmedCount)</a>
+            <a asp-action="Index" asp-route-tab="Preparing" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Preparing" ? "active fw-bold" : "")">Preparing (@Model.PreparingCount)</a>
+            <a asp-action="Index" asp-route-tab="In Transit" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "In Transit" ? "active fw-bold" : "")">In Transit (@Model.InTransitCount)</a>
+            <a asp-action="Index" asp-route-tab="Delivered" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Delivered" ? "active fw-bold" : "")">Delivered (@Model.DeliveredCount)</a>
+            <a asp-action="Index" asp-route-tab="Completed" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Completed" ? "active fw-bold" : "")">Completed (@Model.CompletedCount)</a>
+            <a asp-action="Index" asp-route-tab="Cancelled" asp-route-sort="@Model.CurrentSort"
+               class="@(Model.CurrentTab == "Cancelled" ? "active fw-bold" : "")">Cancelled (@Model.CancelledCount)</a>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0">Sort by:</label>
+            <select class="form-select form-select-sm" style="width:auto;"
+                    onchange="location.href='@Url.Action("Index")?tab=@Uri.EscapeDataString(Model.CurrentTab)&sort=' + this.value">
+                <option value="recent" selected="@(Model.CurrentSort == "recent")">Recently Added</option>
+                <option value="oldest" selected="@(Model.CurrentSort == "oldest")">Oldest First</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Orders list -->
+    @if (!Model.Orders.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="ti ti-package fs-1 d-block mb-2"></i>
+            No orders found for this filter.
+        </div>
+    }
+    else
+    {
+        foreach (var order in Model.Orders)
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <strong>@order.DisplayOrderId</strong>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-muted"
+                                    onclick="navigator.clipboard.writeText('@order.DisplayOrderId')" title="Copy Order ID">
+                                <i class="ti ti-copy"></i>
+                            </button>
+                        </div>
+                        <span class="text-muted small">@order.OrderDate.ToString("MMMM dd, yyyy • hh:mm tt")</span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3 align-items-center order-card-content">
+                        <img src="@(order.FirstItemImagePath ?? "/images/no-image.png")"
+                             class="rounded border" style="width:70px;height:70px;object-fit:contain;" />
+
+                        <div class="flex-grow-1">
+                            <h6 class="fw-bold mb-1">@order.FirstItemName</h6>
+                            <div class="text-muted small mb-0">
+                                @order.FirstItemBrand
+                                @if (order.FirstItemSize.HasValue)
+                                {
+                                    <text> • Size @order.FirstItemSize.Value.ToString("0.#")</text>
+                                }
+                                • Qty: @order.FirstItemQuantity
+                            </div>
+                            @if (order.TotalDistinctItems > 1)
+                            {
+                                <a href="#" class="small text-danger">View items (@order.TotalDistinctItems) <i class="ti ti-chevron-right"></i></a>
+                            }
+                        </div>
+
+                        <div class="text-center px-3">
+                            <div class="text-muted small">Total Amount</div>
+                            <div class="fw-bold">₱@order.TotalAmount.ToString("N2")</div>
+                        </div>
+
+                        <div class="text-center px-3">
+                            <div class="text-muted small mb-1">Status</div>
+                            <span class="badge rounded-pill @BadgeClass(order.Status) px-3 py-2">@order.Status</span>
+                        </div>
+
+                        <a asp-action="Details" asp-route-id="@order.OrderId"
+                           asp-route-tab="@Model.CurrentTab" asp-route-sort="@Model.CurrentSort"
+                           class="btn btn-outline-danger px-4">
+                            @ActionLabel(order.Status)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+</div>

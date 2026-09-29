@@ -1,0 +1,101 @@
+@model SmartOrderSystem.ViewModels.EditProfileViewModel
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml"; // <-- IWASTO base sa tunay na filename mo
+    ViewData["Title"] = "Edit Profile";
+}
+
+<div class="ma-breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a> /
+    <a asp-controller="Account" asp-action="MyAccount">My Account</a> /
+    <span>Edit Profile</span>
+</div>
+
+<div class="ma-layout">
+    <!-- Sidebar (same as My Account) -->
+    <aside class="ma-sidebar">
+        <div class="ma-sidebar-profile">
+            <div class="ma-avatar ma-avatar-placeholder">
+                <i class="ti ti-user"></i>
+            </div>
+            <div class="ma-sidebar-name">@Model.FullName</div>
+            <div class="ma-sidebar-email">@Model.Email</div>
+        </div>
+
+        <nav class="ma-sidebar-nav">
+            <a asp-controller="Account" asp-action="MyAccount" class="ma-nav-link active">
+                <i class="ti ti-user"></i> My Profile
+            </a>
+            <a asp-controller="Order" asp-action="Index" class="ma-nav-link"><i class="ti ti-shopping-bag"></i> My Orders</a>
+            <a asp-controller="Reservation" asp-action="Index" class="ma-nav-link"><i class="ti ti-calendar"></i> My Reservations</a>
+            <a asp-controller="Account" asp-action="MyAddresses" class="ma-nav-link"><i class="ti ti-map-pin"></i> My Addresses</a>
+            <hr class="ma-sidebar-divider" />
+            <a asp-controller="Account" asp-action="Logout" class="ma-nav-link ma-logout">
+                <i class="ti ti-logout"></i> Logout
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="ep-main">
+        <h1 class="ma-page-title">Edit Profile</h1>
+        <p class="ep-subtitle">Update your personal information.</p>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="ep-alert-success">@TempData["Success"]</div>
+        }
+
+        <div class="ep-content-grid">
+            <form asp-controller="Account" asp-action="EditProfile" method="post" class="ep-form-card">
+                <h2>Personal Information</h2>
+                <p class="ep-form-sub">Ensure your information is up to date.</p>
+
+                <input type="hidden" asp-for="CustomerId" />
+
+                <label class="ep-label">Profile Picture</label>
+                <div class="ep-photo-row">
+                    <div class="ma-avatar ma-avatar-placeholder"><i class="ti ti-user"></i></div>
+                    <div>
+                        <button type="button" class="ep-change-photo-btn"><i class="ti ti-camera"></i> Change Photo</button>
+                        <div class="ep-photo-hint">JPG, PNG or GIF. Max size 2MB.</div>
+                    </div>
+                </div>
+
+                <label class="ep-label" asp-for="FullName">Full Name *</label>
+                <input asp-for="FullName" class="ep-input" />
+                <span asp-validation-for="FullName" class="ep-error"></span>
+
+                <label class="ep-label" asp-for="Email">Email Address *</label>
+                <input asp-for="Email" class="ep-input" />
+                <span asp-validation-for="Email" class="ep-error"></span>
+
+                <label class="ep-label" asp-for="ContactNumber">Phone Number *</label>
+                <input asp-for="ContactNumber" class="ep-input" />
+                <span asp-validation-for="ContactNumber" class="ep-error"></span>
+
+                <div class="ep-form-actions">
+                    <a asp-controller="Account" asp-action="MyAccount" class="ep-btn-cancel">Cancel</a>
+                    <button type="submit" class="ep-btn-save"><i class="ti ti-device-floppy"></i> Save Changes</button>
+                </div>
+            </form>
+
+            <div class="ep-side-col">
+                <div class="ep-tip-card">
+                    <div class="ep-tip-icon"><i class="ti ti-bulb"></i></div>
+                    <h3>Account Tips</h3>
+                    <p>Keep your account information up to date to enjoy a smooth and secure shopping experience.</p>
+                </div>
+                <div class="ep-tip-card">
+                    <div class="ep-tip-icon ep-tip-icon-red"><i class="ti ti-shield-lock"></i></div>
+                    <h3>Security</h3>
+                    <p>For your account security, consider updating your password regularly.</p>
+                    <a asp-controller="Account" asp-action="ChangePassword" class="ep-change-pass-btn"><i class="ti ti-lock"></i> Change Password</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,315 @@
+@using SmartOrderSystem.Data
+@inject ApplicationDbContext DbContext
+@{
+    var loggedInEmail = Context.Session.GetString("CustomerUser");
+    var loggedInCustomer = !string.IsNullOrEmpty(loggedInEmail)
+        ? DbContext.Customers.FirstOrDefault(c => c.email == loggedInEmail)
+        : null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - CJ Shoes</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+    <link rel="stylesheet" href="~/css/shop.css" asp-append-version="true" />
+
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+
+    <!-- ANNOUNCEMENT BAR -->
+    <div class="shop-announce-bar">
+        <div class="shop-container d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-truck-delivery me-1"></i> Free shipping for orders ₱2,000 and above!</span>
+            <div class="d-flex gap-3">
+                <a href="#" class="text-white text-decoration-none small"><i class="ti ti-device-mobile me-1"></i>Install App</a>
+                <a href="#" class="text-white text-decoration-none small"><i class="ti ti-headset me-1"></i>Get the best experience</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN NAVBAR -->
+    <header class="shop-navbar">
+        <div class="shop-container d-flex align-items-center gap-4">
+                <a class="shop-logo text-decoration-none" href="/Shop/Index">
+                    <span class="logo-cj-part">CJ</span> <span class="logo-shoes-part">SHOES</span>
+                </a>
+
+            <form class="flex-grow-1 position-relative" method="get" asp-controller="Shop" asp-action="Products">
+                <i class="ti ti-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+                <input type="search" name="searchString" value="@Context.Request.Query["searchString"]" class="form-control ps-5 shop-search" placeholder="Search for shoes, categories or brands..." />
+            </form>
+
+            <div class="d-flex align-items-center gap-4 shop-nav-icons">
+                <span class="d-flex align-items-center gap-1 small text-success">
+                    <i class="ti ti-circle-filled fs-8"></i> Online
+                </span>
+                <div class="shop-notif-wrap position-relative">
+                    <a href="#" class="text-dark text-decoration-none position-relative" id="shopNotifBell">
+                        <i class="ti ti-bell fs-4"></i>
+                        <span class="shop-notif-count" id="shopNotifCount" style="display:none;">0</span>
+                    </a>
+
+                    <div class="shop-notif-panel" id="shopNotifPanel">
+                        <div class="shop-notif-header">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="shop-notif-title">Notifications</span>
+                                <span class="shop-notif-title-badge" id="shopNotifTitleBadge">0</span>
+                            </div>
+                            <button class="shop-notif-markread" type="button" id="shopNotifMarkRead">Mark all as read</button>
+                        </div>
+
+                        <div class="shop-notif-list" id="shopNotifList">
+                            <div class="shop-notif-empty text-center text-muted small py-4">Loading...</div>
+                        </div>
+
+                    </div>
+                    @Html.AntiForgeryToken()
+                </div>
+                @{
+    var cartCount = ViewBag.CartCount ?? 0;
+}
+<a asp-controller="Cart" asp-action="Index" class="text-dark text-decoration-none position-relative">
+    <i class="ti ti-shopping-cart fs-4"></i>
+    @if (cartCount > 0)
+    {
+        <span class="cart-badge">@cartCount</span>
+    }
+</a>
+                <div class="shop-account-wrap position-relative">
+                    <a href="#" class="text-dark text-decoration-none d-flex align-items-center gap-1" id="shopAccountToggle">
+                        <i class="ti ti-user fs-4"></i>
+                        <span class="small">@(loggedInCustomer != null ? loggedInCustomer.full_name.Split(' ')[0] : "Account")</span>
+                        <i class="ti ti-chevron-down fs-6"></i>
+                    </a>
+
+                    <div class="shop-account-panel" id="shopAccountPanel">
+                        @if (loggedInCustomer != null)
+                        {
+                            <div class="shop-account-header">
+                                <div class="shop-account-avatar"><i class="ti ti-user"></i></div>
+                                <div>
+                                    <div class="shop-account-name">@loggedInCustomer.full_name</div>
+                                    <div class="shop-account-email">@loggedInCustomer.email</div>
+                                </div>
+                            </div>
+
+                            <div class="shop-account-links">
+                                <a asp-controller="Account" asp-action="MyAccount"><i class="ti ti-user"></i> My Profile</a>
+                                <a asp-controller="Order" asp-action="Index"><i class="ti ti-shopping-bag"></i> My Orders</a>
+                                <a asp-controller="Reservation" asp-action="Index"><i class="ti ti-calendar"></i> My Reservations</a>
+                                <a asp-controller="Account" asp-action="MyAddresses"><i class="ti ti-map-pin"></i> My Addresses</a>
+                            </div>
+
+                            <a asp-controller="Account" asp-action="Logout" class="shop-account-logout">
+                                <i class="ti ti-logout"></i> Logout
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="shop-account-links">
+                                <a asp-controller="Account" asp-action="Login"><i class="ti ti-login"></i> Login / Register</a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="shop-subnav">
+            <div class="shop-container d-flex gap-4">
+        @{
+            var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+            var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+        }
+            <a asp-controller="Shop" asp-action="Index" 
+           class="@(currentController == "Shop" && currentAction == "Index" ? "active" : "")">Home</a>
+        
+            <a asp-controller="Shop" asp-action="Products" 
+           class="@(currentController == "Shop" && currentAction == "Products" ? "active" : "")">Products</a>
+        
+            <a asp-controller="Reservation" asp-action="Index" 
+           class="@(currentController == "Reservation" ? "active" : "")">Reservations</a>
+        
+            <a asp-controller="Order" asp-action="Index" 
+           class="@(currentController == "Order" ? "active" : "")">Orders</a>
+        
+            <a asp-controller="Shop" asp-action="About" 
+           class="@(currentController == "Shop" && currentAction == "About" ? "active" : "")">About Us</a>
+        
+            <a asp-controller="Shop" asp-action="Contact" 
+           class="@(currentController == "Shop" && currentAction == "Contact" ? "active" : "")">Contact</a>
+        </div>
+        </nav>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main>
+        @RenderBody()
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="shop-footer">
+        <div class="shop-container">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <a class="shop-logo text-decoration-none" href="/Shop/Index">
+                        <span class="logo-cj-part">CJ</span> <span class="logo-shoes-part">SHOES</span>
+                    </a>
+                    <p class="text-white-50 small">
+                        Your trusted source for premium footwear. Quality, style, and comfort — every step of the way.
+                    </p>
+                    <div class="d-flex gap-2 mt-3">
+                        <a href="#" class="footer-social"><i class="ti ti-brand-facebook"></i></a>
+                        <a href="#" class="footer-social"><i class="ti ti-brand-instagram"></i></a>
+                        <a href="#" class="footer-social"><i class="ti ti-brand-tiktok"></i></a>
+                        <a href="#" class="footer-social"><i class="ti ti-brand-youtube"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <h6 class="text-white fw-bold mb-3">Quick Links</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">Home</a></li>
+                        <li><a href="#">Products</a></li>
+                        <li><a href="#">Reservations</a></li>
+                        <li><a href="#">Orders</a></li>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-md-3">
+                    <h6 class="text-white fw-bold mb-3">Customer Support</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">FAQs</a></li>
+                        <li><a href="#">Shipping &amp; Delivery</a></li>
+                        <li><a href="#">Returns &amp; Exchanges</a></li>
+                        <li><a href="#">Terms &amp; Conditions</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-md-3">
+                    <h6 class="text-white fw-bold mb-3">Store Location</h6>
+                    <ul class="list-unstyled footer-links">
+                        <li><i class="ti ti-map-pin me-1"></i>CJ Shoes Store, Purok Mahiwaga, Barangay Engkanto, Biringan City, Samar, Philippines 6700</li>
+                        <li><i class="ti ti-phone me-1"></i> 0977 123 4567</li>
+                        <li><i class="ti ti-mail me-1"></i> support@cjshoes.com</li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr class="border-secondary mt-4 mb-3" />
+            <p class="text-center text-white-50 small mb-0">© 2026 CJ Shoes Retail Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        const shopNotifBell = document.getElementById('shopNotifBell');
+        const shopNotifPanel = document.getElementById('shopNotifPanel');
+
+        async function loadNotifications() {
+            try {
+                const res = await fetch('/Notification/GetRecent');
+                const data = await res.json();
+                const listEl = document.getElementById('shopNotifList');
+                const countEl = document.getElementById('shopNotifCount');
+                const titleBadgeEl = document.getElementById('shopNotifTitleBadge');
+
+                if (!data.success || !data.notifications || data.notifications.length === 0) {
+                    listEl.innerHTML = '<div class="shop-notif-empty text-center text-muted small py-4">No notifications yet.</div>';
+                    countEl.style.display = 'none';
+                    titleBadgeEl.textContent = '0';
+                    return;
+                }
+
+                const iconMap = {
+                    Confirmed: { cls: 'shop-notif-green', icon: 'ti-circle-check' },
+                    Preparing: { cls: 'shop-notif-orange', icon: 'ti-package' },
+                    'In Transit': { cls: 'shop-notif-blue', icon: 'ti-truck-delivery' },
+                    Delivered: { cls: 'shop-notif-blue', icon: 'ti-truck-delivery' },
+                    Cancelled: { cls: 'shop-notif-red', icon: 'ti-circle-x' },
+                    ReservationConfirmed: { cls: 'shop-notif-green', icon: 'ti-circle-check' },
+                    Promotion: { cls: 'shop-notif-purple', icon: 'ti-discount-2' },
+                    NewArrival: { cls: 'shop-notif-yellow', icon: 'ti-star' }
+                };
+
+                listEl.innerHTML = data.notifications.map(n => {
+                    const meta = iconMap[n.type] || { cls: 'shop-notif-teal', icon: 'ti-bell' };
+                    const timeLabel = new Date(n.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                    return `
+                        <div class="shop-notif-item">
+                            <div class="shop-notif-icon ${meta.cls}"><i class="ti ${meta.icon}"></i></div>
+                            <div class="shop-notif-content">
+                                <div class="shop-notif-toprow"><span class="shop-notif-item-title">${n.title}</span></div>
+                                <div class="shop-notif-desc">${n.message}</div>
+                                <div class="shop-notif-time">${timeLabel}</div>
+                            </div>
+                            ${!n.is_read ? '<span class="shop-notif-dot"></span>' : ''}
+                        </div>`;
+                }).join('');
+
+                if (data.unreadCount > 0) {
+                    countEl.textContent = data.unreadCount;
+                    countEl.style.display = '';
+                    titleBadgeEl.textContent = data.unreadCount;
+                } else {
+                    countEl.style.display = 'none';
+                    titleBadgeEl.textContent = '0';
+                }
+            } catch (err) {
+                console.error('Failed to load notifications', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadNotifications);
+
+        shopNotifBell.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            shopNotifPanel.classList.toggle('shop-notif-open');
+            loadNotifications();
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!shopNotifPanel.contains(e.target) && !shopNotifBell.contains(e.target)) {
+                shopNotifPanel.classList.remove('shop-notif-open');
+            }
+        });
+
+        document.getElementById('shopNotifMarkRead').addEventListener('click', async function () {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            await fetch('/Notification/MarkAllAsRead', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': token }
+            });
+            loadNotifications();
+        });
+
+        const shopAccountToggle = document.getElementById('shopAccountToggle');
+        const shopAccountPanel = document.getElementById('shopAccountPanel');
+
+        shopAccountToggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            shopAccountPanel.classList.toggle('shop-account-open');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!shopAccountPanel.contains(e.target) && !shopAccountToggle.contains(e.target)) {
+                shopAccountPanel.classList.remove('shop-account-open');
+            }
+        });
+    </script>
+</body>
+</html>

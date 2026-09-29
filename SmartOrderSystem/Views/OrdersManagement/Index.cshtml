@@ -1,0 +1,415 @@
+@model IEnumerable<SmartOrderSystem.Models.Order>
+
+@{
+    ViewData["Title"] = "Orders Management";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    
+    var pageIndex = ViewBag.PageIndex ?? 1;
+    var totalPages = ViewBag.TotalPages ?? 1;
+    var currentSearch = ViewBag.CurrentSearch as string ?? "";
+    var currentStatus = ViewBag.CurrentStatus as string ?? "All";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <style>
+        /* COMPACT HORIZONTAL BOX LAYOUT */
+        .status-box-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .status-box-card:hover { 
+            transform: translateY(-2px); 
+            border-color: #cbd5e1;
+        }
+        .icon-dark-square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            background-color: #1e293b;
+            font-size: 1.50rem;
+        }
+
+        /* FILTER SECTION */
+        .filter-section { 
+            display: flex; 
+            gap: 16px; 
+            margin-bottom: 16px; 
+            align-items: center; 
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .search-wrapper { position: relative; flex-grow: 1; }
+        .search-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        .search-input { 
+            width: 100%; 
+            padding: 12px 16px 12px 48px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background-color: #f8fafc;
+            font-size: 0.95rem;
+        }
+        .search-input:focus { outline: none; border-color: #cbd5e1; background: white; }
+        .filter-select { 
+            padding: 12px 20px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            background-color: #f8fafc;
+            font-weight: 500;
+        }
+
+        /* INTEGRATED COMPACT PANEL CARD (Solusyon sa gap) */
+        .panel { 
+            background: #ffffff; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02); 
+            border: 1px solid #e2e8f0;
+            padding: 0; 
+            display: flex;
+            flex-direction: column;
+            height: auto !important;
+        }
+        
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0 !important; /* Pinipilit na walang allowance sa ilalim */
+        }
+        
+        .orders-table th {
+            background-color: #f8fafc;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 14px 16px !important;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+            text-transform: uppercase;
+        }
+        
+        .orders-table td {
+            padding: 14px 16px !important;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+        
+        .orders-table tbody tr:last-child td { 
+            border-bottom: none; 
+        }
+        
+        .orders-table tbody tr:hover { 
+            background-color: #f8fafc; 
+        }
+        
+        .col-id { font-weight: 700; color: #0284c7 !important; }
+        
+        /* View Details Button Style */
+        .btn-view-details {
+            background: transparent;
+            border: 1px solid #ced4da;
+            color: #212529;
+            font-weight: 500;
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-view-details:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+            color: #212529;
+        }
+
+        .badge-pending{
+    background:#FEF3C7;
+    color:#92400E;
+    border:1px solid #FCD34D;
+}
+
+/* Confirmed */
+.badge-confirmed{
+    background:#DBEAFE;
+    color:#1D4ED8;
+    border:1px solid #93C5FD;
+}
+
+/* Preparing */
+.badge-preparing{
+    background:#FFEDD5;
+    color:#C2410C;
+    border:1px solid #FDBA74;
+}
+
+/* In Transit */
+.badge-in-transit{
+    background:#EDE9FE;
+    color:#6414e5;
+    border:1px solid #C4B5FD;
+}
+
+/* Delivered */
+.badge-delivered{
+    background:#DCFCE7;
+    color:#166534;
+    border:1px solid #86EFAC;
+}
+
+/* Cancelled */
+.badge-cancelled{
+    background:#FEE2E2;
+    color:#B91C1C;
+    border:1px solid #FCA5A5;
+}
+
+        /* SAKTONG INTEGRATED PAGINATION FOOTER */
+        .catalog-footer {
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0; 
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 0 !important; /* Tinanggal ang mt-4 para hindi lumubog sa dulo */
+        }
+
+        .custom-page-block {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            padding: 0 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .custom-page-block.active-red {
+            background-color: #dc3545 !important;
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+        .custom-page-block.inactive-border {
+            background-color: #ffffff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+        .custom-page-block.inactive-border:hover {
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        .custom-page-block.disabled-btn {
+            background-color: #ffffff;
+            color: #cbd5e1;
+            border: 1px solid #f1f5f9;
+            pointer-events: none;
+        }
+.empty-state{
+    text-align:center;
+    padding:48px 20px;
+    color:#6B7280;
+}
+
+.empty-icon{
+    font-size:44px;
+    color:#D1D5DB;
+    margin-bottom:12px;
+}
+
+.empty-state h6{
+    margin:0;
+    font-size:1rem;
+    font-weight:600;
+    color:#374151;
+}
+
+.empty-state p{
+    margin-top:6px;
+    font-size:0.85rem;
+    color:#9CA3AF;
+}
+    </style>
+}
+
+@await Html.PartialAsync("~/Views/Shared/_PageHeader.cshtml", ("Orders Management", "Manage online orders from confirmation to delivery"))
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3 mb-4">
+    <div class="col">
+        <div class="status-box-card p-3 d-flex align-items-center h-100">
+            <div class="icon-dark-square text-warning me-3">
+                <i class="ti ti-shopping-cart"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-bold text-uppercase order-summary-label">PENDING ORDERS</span>
+                <h4 class="fw-bold mb-0 text-dark mt-0.5">@(ViewBag.PendingCount ?? 0)</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="status-box-card p-3 d-flex align-items-center h-100">
+            <div class="icon-dark-square text-primary me-3">
+                <i class="ti ti-package"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-bold text-uppercase order-summary-label">CONFIRMED ORDERS</span>
+                <h4 class="fw-bold mb-0 text-dark mt-0.5">@(ViewBag.ConfirmedCount ?? 0)</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="status-box-card p-3 d-flex align-items-center h-100">
+            <div class="icon-dark-square text-info me-3">
+                <i class="ti ti-truck"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-bold text-uppercase order-summary-label">IN TRANSIT</span>
+                <h4 class="fw-bold mb-0 text-dark mt-0.5">@(ViewBag.InTransitCount ?? 0)</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="status-box-card p-3 d-flex align-items-center h-100">
+            <div class="icon-dark-square text-success me-3">
+                <i class="ti ti-circle-check"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-bold text-uppercase order-summary-label">DELIVERED ORDERS</span>
+                <h4 class="fw-bold mb-0 text-dark mt-0.5">@(ViewBag.DeliveredCount ?? 0)</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="status-box-card p-3 d-flex align-items-center h-100">
+            <div class="icon-dark-square text-danger me-3">
+                <i class="ti ti-circle-x"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-bold text-uppercase order-summary-label">CANCELLED ORDERS</span>
+                <h4 class="fw-bold mb-0 text-dark mt-0.5">@(ViewBag.CancelledCount ?? 0)</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form asp-action="Index" method="get">
+    <div class="filter-section border-0 shadow-sm">
+        @await Html.PartialAsync("~/Views/Shared/_SearchField.cshtml", ("searchString", ViewBag.CurrentSearch as string ?? "", "Search order ID, customer, product...", "search-wrapper", "search-input", "ti ti-search", true))
+        <select name="statusFilter" class="filter-select border" onchange="this.form.submit()">
+            <!option value="All" @(ViewBag.CurrentStatus == "All" ? "selected" : "")>All Statuses</!option>
+            <!option value="Pending" @(ViewBag.CurrentStatus == "Pending" ? "selected" : "")>Pending</!option>
+            <!option value="Confirmed" @(ViewBag.CurrentStatus == "Confirmed" ? "selected" : "")>Confirmed</!option>
+            <!option value="Preparing" @(ViewBag.CurrentStatus == "Preparing" ? "selected" : "")>Preparing</!option>
+            <!option value="In Transit" @(ViewBag.CurrentStatus == "In Transit" ? "selected" : "")>In Transit</!option>
+            <!option value="Delivered" @(ViewBag.CurrentStatus == "Delivered" ? "selected" : "")>Delivered</!option>
+            <!option value="Cancelled" @(ViewBag.CurrentStatus == "Cancelled" ? "selected" : "")>Cancelled</!option>
+        </select>
+    </div>
+</form>
+
+<div class="panel mb-5">
+    <div class="table-responsive">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th class="ps-4">ORDER ID</th>
+                    <th>CUSTOMER</th>
+                    <th>TOTAL AMOUNT</th>
+                    <th>PAYMENT METHOD</th>
+                    <th>COURIER</th>
+                    <th>TRACKING NO.</th>
+                    <th>ORDER STATUS</th>
+                    <th>DATE ORDERED</th>
+                    <th class="pe-4 text-end">ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var order in Model)
+                    {
+                        string badgeColorClass = (order.status?.Trim().ToLower()) switch
+                        {
+                            "pending" => "badge-pending",
+                            "confirmed" => "badge-confirmed",
+                            "preparing" => "badge-preparing",
+                            "in transit" => "badge-in-transit",
+                            "delivered" => "badge-delivered",
+                            "cancelled" => "badge-cancelled",
+                            _ => "bg-secondary text-white"
+                        };
+
+                        <tr>
+                            <td class="ps-4 col-id">#ORD-@order.order_id.ToString("D4")</td>
+                            <td class="fw-semibold text-dark">@(order.Customer != null ? order.Customer.full_name : "Walk-in Customer")</td>
+                            <td class="fw-bold text-dark">₱@order.total_amount.ToString("N0")</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(order.payment_method) && order.payment_method != "N/A")
+                                {
+                                    <span class="badge bg-light text-dark border">@order.payment_method</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="text-dark">@(string.IsNullOrEmpty(order.courier) ? "—" : order.courier)</td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(order.tracking_number) ? "—" : order.tracking_number)</td>
+                            <td>
+                                @await Html.PartialAsync("~/Views/Shared/_StatusBadge.cshtml", (order.status ?? "UNKNOWN", badgeColorClass, "text-uppercase rounded-2 px-2 py-1", "font-size:0.7rem;"))
+                            </td>
+                            <td class="text-secondary small">@order.order_date.ToString("MMM dd, yyyy hh:mm tt")</td>
+                            <td class="pe-4 text-end">
+                                <a asp-action="Details" asp-route-id="@order.order_id" class="btn-view-details">
+                                    <i class="ti ti-eye"></i> View Details
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    @await Html.PartialAsync("~/Views/Shared/_EmptyState.cshtml", ("No orders found", "Try adjusting your filters or search keyword.", "ti ti-package-off", 8))
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="catalog-footer">
+        <span class="catalog-count">Showing @(Model?.Count() ?? 0) of @(ViewBag.TotalOrders ?? 0) orders</span>
+
+        <div class="pagination">
+            <a class="page-btn @(pageIndex <= 1 ? "disabled" : "")"
+               asp-action="Index" asp-route-pageNumber="@(pageIndex - 1)" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus">
+                <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                Previous
+            </a>
+
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <a class="page-num @(i == pageIndex ? "active" : "")"
+                   asp-action="Index" asp-route-pageNumber="@i" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus">@i</a>
+            }
+
+            <a class="page-btn @(pageIndex >= totalPages ? "disabled" : "")"
+               asp-action="Index" asp-route-pageNumber="@(pageIndex + 1)" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus">
+                Next
+                <i class="ti ti-chevron-right" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+</div>

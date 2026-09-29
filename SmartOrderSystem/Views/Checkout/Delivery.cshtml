@@ -1,0 +1,180 @@
+@model SmartOrderSystem.ViewModels.CheckoutDeliveryViewModel
+
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    ViewData["Title"] = "Checkout - Delivery";
+
+    var selected = Model.SavedAddresses.FirstOrDefault(a => a.address_id == Model.SelectedAddressId);
+}
+
+<div class="container-fluid p-4">
+    <h2 class="fw-bold mb-1">Checkout</h2>
+    <p class="text-muted mb-4">Review your details and complete your order.</p>
+
+    <div class="d-flex align-items-center mb-4 checkout-stepper">
+        <div class="step active"><span class="step-circle">1</span> Delivery</div>
+        <div class="step-line"></div>
+        <div class="step"><span class="step-circle">2</span> Payment</div>
+        <div class="step-line"></div>
+        <div class="step"><span class="step-circle">3</span> Confirmation</div>
+    </div>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" asp-validation-summary="ModelOnly"></div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1"><i class="ti ti-map-pin me-2"></i>Delivery Details</h5>
+                    <p class="text-muted small mb-4">We'll ship your order to your saved address.</p>
+
+                    @if (selected != null)
+                    {
+                        <div class="co-addr-display">
+                            <div class="co-addr-display-header">
+                                <div class="co-addr-display-title">
+                                    <i class="ti ti-home"></i>
+                                    <span>@selected.address_type</span>
+                                    @if (selected.is_default)
+                                    {
+                                        <span class="ma-badge-default">Default</span>
+                                    }
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#changeAddressModal">
+                                    <i class="ti ti-pencil me-1"></i> Change Address
+                                </button>
+                            </div>
+                            <div class="co-addr-display-body">
+                                <div class="fw-semibold">@selected.recipient_name</div>
+                                <div class="text-muted"><i class="ti ti-phone me-1"></i>@selected.contact_number</div>
+                                <div class="text-muted">
+                                    <i class="ti ti-map-pin me-1"></i>
+                                    @selected.street_address, @selected.barangay, @selected.city, @selected.province
+                                    @if (!string.IsNullOrWhiteSpace(selected.postal_code))
+                                    {
+                                        <span>, @selected.postal_code</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(selected.landmark))
+                                {
+                                    <div class="text-muted"><i class="ti ti-flag me-1"></i>Landmark: @selected.landmark</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="co-addr-empty">
+                            <i class="ti ti-map-pin-off"></i>
+                            <p class="mb-3">You have no saved delivery address yet.</p>
+                            <a asp-controller="Account" asp-action="AddAddress" class="btn btn-danger btn-sm">
+                                <i class="ti ti-plus me-1"></i> Add Delivery Address
+                            </a>
+                        </div>
+                    }
+
+                    <form asp-action="Delivery" method="post" class="mt-4" id="deliveryForm">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SelectedAddressId" id="SelectedAddressId" value="@Model.SelectedAddressId" />
+
+                        <button type="submit" class="btn btn-danger w-100 py-2" @(selected == null ? "disabled" : "")>
+                            Continue to Payment <i class="ti ti-arrow-right ms-1"></i>
+                        </button>
+                        <div class="text-center small text-muted mt-2">
+                            <i class="ti ti-lock me-1"></i> Your information is safe and encrypted.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            @await Html.PartialAsync("_OrderSummary", Model.OrderSummary)
+        </div>
+    </div>
+</div>
+
+<!-- Change Address Modal -->
+<div class="modal fade" id="changeAddressModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Select Delivery Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Choose a saved address for this order.</p>
+
+                @if (Model.SavedAddresses.Any())
+                {
+                    <div class="co-addr-option-list">
+                        @foreach (var address in Model.SavedAddresses)
+                        {
+                            <label class="co-addr-option @(address.address_id == Model.SelectedAddressId ? "is-selected" : "")">
+                                <input type="radio" name="addressOption" value="@address.address_id" @(address.address_id == Model.SelectedAddressId ? "checked" : "") />
+                                <div class="co-addr-option-icon"><i class="ti ti-home"></i></div>
+                                <div class="co-addr-option-body">
+                                    <div class="co-addr-option-title">
+                                        @address.address_type
+                                        @if (address.is_default)
+                                        {
+                                            <span class="ma-badge-default">Default</span>
+                                        }
+                                    </div>
+                                    <div class="fw-semibold">@address.recipient_name</div>
+                                    <div class="text-muted small"><i class="ti ti-phone me-1"></i>@address.contact_number</div>
+                                    <div class="text-muted small">
+                                        <i class="ti ti-map-pin me-1"></i>
+                                        @address.street_address, @address.barangay, @address.city, @address.province
+                                        @if (!string.IsNullOrWhiteSpace(address.postal_code))
+                                        {
+                                            <span>, @address.postal_code</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(address.landmark))
+                                    {
+                                        <div class="text-muted small"><i class="ti ti-flag me-1"></i>Landmark: @address.landmark</div>
+                                    }
+                                </div>
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">You have no saved addresses yet.</p>
+                }
+
+                <a asp-controller="Account" asp-action="AddAddress" class="co-addr-add-link">
+                    <i class="ti ti-plus"></i> Add New Address
+                </a>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="useThisAddressBtn">Use This Address</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('useThisAddressBtn').addEventListener('click', function () {
+            var checked = document.querySelector('input[name="addressOption"]:checked');
+            if (!checked) return;
+
+            document.getElementById('SelectedAddressId').value = checked.value;
+            document.getElementById('deliveryForm').submit();
+        });
+
+        document.querySelectorAll('.co-addr-option').forEach(function (label) {
+            label.addEventListener('click', function () {
+                document.querySelectorAll('.co-addr-option').forEach(l => l.classList.remove('is-selected'));
+                label.classList.add('is-selected');
+            });
+        });
+    </script>
+}

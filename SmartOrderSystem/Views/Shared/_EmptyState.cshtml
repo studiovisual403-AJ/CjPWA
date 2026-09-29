@@ -1,0 +1,11 @@
+@model (string Title, string Description, string IconClass, int ColSpan)
+
+<tr>
+    <td colspan="@Model.ColSpan" class="empty-state">
+        <div class="empty-icon">
+            <i class="@Model.IconClass" aria-hidden="true"></i>
+        </div>
+        <h6>@Model.Title</h6>
+        <p>@Model.Description</p>
+    </td>
+</tr>

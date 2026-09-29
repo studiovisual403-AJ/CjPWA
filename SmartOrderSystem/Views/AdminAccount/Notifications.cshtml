@@ -1,0 +1,25 @@
+@model IEnumerable<SmartOrderSystem.Models.Notification>
+@{
+    ViewData["Title"] = "Admin Notifications";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+<h1>Admin Notifications</h1>
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        @if (!Model.Any())
+        {
+            <p class="text-muted mb-0">No admin notifications are available.</p>
+        }
+        else
+        {
+            foreach (var notification in Model)
+            {
+                <div class="border-bottom py-3">
+                    <strong>@notification.title</strong>
+                    <div>@notification.message</div>
+                    <small class="text-muted">@notification.created_at.ToString("MMM dd, yyyy h:mm tt")</small>
+                </div>
+            }
+        }
+    </div>
+</div>

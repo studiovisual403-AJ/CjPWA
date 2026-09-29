@@ -1,0 +1,195 @@
+@model SmartOrderSystem.ViewModels.InventoryDashboardViewModel
+@{
+    ViewData["Title"] = "Live Inventory Module";
+}
+
+<div class="inventory-page">
+
+    <div class="inventory-page-header">
+        <h2 class="inventory-page-title">Live Inventory Module</h2>
+        <p class="inventory-page-subtitle">Real-time stock levels with low stock indicators</p>
+    </div>
+
+    <div class="row g-3 inventory-summary-row">
+        <div class="col-12 col-md-4">
+            <div class="inventory-summary-card">
+                <div class="inventory-summary-icon icon-total">
+                    <i class="ti ti-package"></i>
+                </div>
+                <div class="inventory-summary-text">
+                    <span class="inventory-summary-label">TOTAL ITEMS</span>
+                    <span class="inventory-summary-value">@Model.TotalItems.ToString("N0")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="inventory-summary-card card-alert">
+                <div class="inventory-summary-icon icon-low">
+                    <i class="ti ti-alert-circle"></i>
+                </div>
+                <div class="inventory-summary-text">
+                    <span class="inventory-summary-label">LOW STOCK</span>
+                    <span class="inventory-summary-value">@Model.LowStockCount</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="inventory-summary-card">
+                <div class="inventory-summary-icon icon-out">
+                    <i class="ti ti-package-off"></i>
+                </div>
+                <div class="inventory-summary-text">
+                    <span class="inventory-summary-label">OUT OF STOCK</span>
+                    <span class="inventory-summary-value">@Model.OutOfStockCount</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inventory-table-card">
+        <h5 class="inventory-table-title">Stock Levels by Size</h5>
+
+        <div class="table-responsive">
+            <table class="table inventory-table align-middle">
+                <thead>
+                    <tr>
+                        <th class="text-start ps-3">PRODUCT</th>
+                        <th class="text-start">SKU</th>
+                        @foreach (var size in Model.SizeColumns)
+                        {
+                            <th class="text-center">@size.ToString("G29")</th>
+                        }
+                        <th class="text-center pe-3">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.MatrixRows)
+                    {
+                        <tr>
+                            <td class="text-start product-name ps-3">@row.ModelName</td>
+                            <td class="text-start product-sku">@row.Sku</td>
+                            
+                            @foreach (var size in Model.SizeColumns)
+                            {
+                                var qty = row.StockBySize.ContainsKey(size) && row.StockBySize[size].HasValue 
+                                          ? row.StockBySize[size].Value 
+                                          : 0;
+                                          
+                                var stockClass = qty == 0 ? "stock-out" : (qty <= 5 ? "stock-low" : "stock-ok");
+
+                                <td class="text-center">
+                                    <span class="stock-pill @stockClass">@qty</span>
+                                </td>
+                            }
+                            
+                            <td class="text-center pe-3">
+                                <button type="button" 
+                                        class="btn-inventory-restock" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#restockModal"
+                                        data-product-name="@row.ModelName"
+                                        data-product-sku="@row.Sku">
+                                    <i class="ti ti-package-import"></i> Restock
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="catalog-footer">
+            <span class="catalog-count">
+                @{
+                    int currentRecordsCount = Model.MatrixRows?.Count ?? 0;
+                    int totalProducts = Model.TotalProducts;
+                }
+                Showing @currentRecordsCount of @totalProducts products
+            </span>
+
+            <div class="pagination">
+                <a class="page-btn @(Model.CurrentPage <= 1 ? "disabled" : "")"
+                   asp-action="Index" asp-route-page="@(Model.CurrentPage - 1)">
+                    <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                    Previous
+                </a>
+
+                @for (int i = 1; i <= Model.TotalPages; i++)
+                {
+                    <a class="page-num @(i == Model.CurrentPage ? "active" : "")"
+                       asp-action="Index" asp-route-page="@i">@i</a>
+                }
+
+                <a class="page-btn @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")"
+                   asp-action="Index" asp-route-page="@(Model.CurrentPage + 1)">
+                    Next
+                    <i class="ti ti-chevron-right" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+        <hr class="text-muted opacity-25 my-3" />
+        <div class="inventory-legend">
+            <span class="legend-item">
+                <span class="legend-dot legend-ok"></span> Adequate Stock (6+)
+            </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-low"></span> Low Stock (1-5)
+            </span>
+            <span class="legend-item">
+                <span class="legend-dot legend-out"></span> Out of Stock (0)
+            </span>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal fade" id="restockModal" tabindex="-1" aria-labelledby="restockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content custom-inventory-modal">
+            <div class="modal-header py-2 px-3">
+                <h6 class="modal-title fw-bold" id="restockModalLabel">Add Stock Inventory</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="restockForm" method="post" action="/Inventory/Restock">
+                @Html.AntiForgeryToken()
+                @Html.AntiForgeryToken()
+                <div class="modal-body p-3">
+                    
+                    <div class="mb-3">
+                        <label class="modal-custom-label">SELECTED PRODUCT</label>
+                        <div id="modalProductName" class="fw-bold text-dark mt-1 inventory-modal-product-name"></div>
+                        <div id="modalProductSku" class="text-muted fw-semibold inventory-modal-product-sku"></div>
+                        <input type="hidden" id="hiddenProductSku" name="Sku" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="selectSize" class="modal-custom-label mb-1">SELECT SIZE</label>
+                        <select class="form-select form-select-sm inventory-modal-control" id="selectSize" name="Size" required>
+                            <option value="" selected disabled>-- Choose Size --</option>
+                            @foreach (var size in Model.SizeColumns)
+                            {
+                                <option value="@size">Size @size.ToString("G29")</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="inputQuantity" class="modal-custom-label mb-1">QUANTITY TO ADD</label>
+                        <input type="number" class="form-control form-control-sm inventory-modal-control" id="inputQuantity" name="Quantity" min="1" placeholder="e.g. 10" required />
+                    </div>
+
+                </div>
+                <div class="modal-footer py-2 px-3">
+                    <button type="button" class="btn btn-sm btn-light border inventory-modal-action" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-dark inventory-modal-action inventory-modal-action-dark">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script src="~/js/inventory-restock.js" asp-append-version="true"></script>
+}

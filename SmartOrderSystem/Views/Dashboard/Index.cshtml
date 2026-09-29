@@ -1,0 +1,118 @@
+@{
+    ViewData["Title"] = "Dashboard Overview";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}
+
+<div class="page-header">
+    <div>
+        <h1>Dashboard Overview</h1>
+        <p>Real-time metrics and business intelligence</p>
+    </div>
+
+@* ── Stats Cards ── *@
+<div class="stats-grid">
+    <!-- Active Reservations -->
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="ti ti-calendar-check"></i></div> <!-- Added -filled -->
+        <div class="stat-badge pos">Live data</div>
+        <div class="stat-num">@ViewBag.ActiveReservations</div>
+        <div class="stat-label">ACTIVE RESERVATIONS</div>
+        <div class="stat-sub">Today's overview</div>
+    </div>
+
+    <!-- Out of Stock -->
+    <div class="stat-card alert-card">
+        <div class="stat-icon red"><i class="ti ti-package-off"></i></div> <!-- Added -filled -->
+        <div class="stat-badge neg">Live data</div>
+        <div class="stat-num">@ViewBag.OutOfStockCount</div>
+        <div class="stat-label">OUT OF STOCK ALERTS</div>
+        <div class="stat-sub">Inventory watch</div>
+    </div>
+
+    <!-- Total Sales -->
+    <div class="stat-card">
+        <div class="stat-icon dark"><i class="ti ti-cash-banknote"></i></div> <!-- Added -filled -->
+        <div class="stat-badge pos">Completed orders</div>
+        <div class="stat-num">₱@ViewBag.TotalMonthlySales?.ToString("N0")</div>
+        <div class="stat-label">TOTAL MONTHLY SALES</div>
+        <div class="stat-sub">@ViewBag.SalesMonth</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon dark"><i class="ti ti-shopping-bag"></i></div>
+        <div class="stat-num">@ViewBag.TotalProducts</div>
+        <div class="stat-label">TOTAL PRODUCTS</div>
+        <div class="stat-sub">Catalog count</div>
+    </div>
+</div>
+
+@* ── Bottom Panels ── *@
+<div class="panels-grid">
+    <!-- Recent Orders Panel -->
+    <div class="panel">
+        <div class="panel-header"><h2>Recent Orders</h2></div>
+        <table class="orders-table">
+            <thead>
+                <tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var o in ViewBag.RecentOrders)
+{
+    var badgeClass = o.Status.ToString() switch
+    {
+        "Pending" => "badge-pending",
+        "Confirmed" => "badge-confirmed",
+        "Preparing" => "badge-preparing",
+        "In Transit" => "badge-transit",
+        "Delivered" => "badge-delivered",
+        "Cancelled" => "badge-cancelled",
+        _ => "badge-default"
+    };
+
+    <tr>
+        <td>@o.OrderId</td>
+        <td>@o.CustomerName</td>
+        <td>₱@o.Amount.ToString("N0")</td>
+        <td>
+            <span class="badge @badgeClass">@o.Status</span>
+        </td>
+    </tr>
+}
+            </tbody>
+        </table>
+        <div class="panel-footer">
+            <a href="/OrdersManagement/Index">View all orders
+            <span class="arrow">→</span></a>
+        </div>
+    </div>
+
+    <!-- Critical Stock Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <h2>Critical Stock Levels <span class="count-badge">@ViewBag.UrgentAlerts</span></h2>
+        </div>
+        <div class="stock-list">
+            @foreach (var s in ViewBag.CriticalStock) {
+                <div class="stock-row">
+                    <div class="stock-thumb-small"><img src="@s.ImageUrl" alt="@s.ProductName" /></div>
+                    <div class="stock-info">
+                        <h3>@s.ProductName</h3>
+                        <p>@s.Brand</p>
+                    </div>
+                    <div class="stock-meta">
+                        <span class="critical-info">@s.CriticalCount critical sizes</span>
+                        <small>Lowest: Size @s.LowestSize.ToString("0.#") (@s.LowestQuantity)</small>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="panel-footer">
+            <a href="/Inventory/Index">View all inventory
+            <span class="arrow">→</span></a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,158 @@
+@model SmartOrderSystem.Models.ViewModels.CartViewModel
+@{
+    ViewData["Title"] = "Your Cart";
+    Layout = "_ShopLayout"; // TODO: palitan kung iba ang pangalan ng shop layout niyo
+}
+
+<div class="shop-container cart-page py-4">
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <h2 class="fw-bold mb-1">Your Cart</h2>
+            <nav class="cart-breadcrumb small text-muted">
+                <a asp-controller="Shop" asp-action="Index" class="text-muted text-decoration-none">Home</a>
+                <span class="mx-1">&gt;</span> <span>Cart</span>
+            </nav>
+        </div>
+
+        @if (Model.Items.Any())
+        {
+            <form asp-action="ClearCart" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn cart-clear-btn">
+                    <i class="ti ti-trash me-1"></i> Clear Cart
+                </button>
+            </form>
+        }
+    </div>
+
+    @if (!Model.Items.Any())
+    {
+        <div class="text-center py-5">
+            <i class="ti ti-shopping-cart-off fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Your cart is empty.</p>
+            <a asp-controller="Shop" asp-action="Products" class="btn btn-danger">Browse Products</a>
+        </div>
+    }
+    else
+    {
+        @if (!Model.QualifiesForFreeShipping)
+        {
+            <div class="cart-shipping-banner mb-4">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="ti ti-circle-check text-success"></i>
+                    <span>You're <strong>&#8369;@Model.AmountAwayFromFreeShipping.ToString("N0")</strong> away from free shipping!</span>
+                </div>
+                <div class="cart-progress-track">
+                    <div class="cart-progress-fill" style="width:@Model.FreeShippingProgressPercent.ToString("0")%;"></div>
+                </div>
+                <div class="text-end small text-muted mt-1">
+                    &#8369;@Model.Subtotal.ToString("N0") / &#8369;@Model.FreeShippingThreshold.ToString("N0")
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="cart-shipping-banner cart-shipping-qualified mb-4">
+                <i class="ti ti-circle-check text-success"></i> <span>You qualify for free shipping!</span>
+            </div>
+        }
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="cart-items-card">
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="cart-item-row">
+                            <img src="@item.ImageUrl" alt="@item.Name" class="cart-item-img" />
+
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">@item.Name</div>
+                                <div class="cart-item-variant text-muted small">@item.Variant</div>
+                                <div class="cart-item-meta small text-muted">
+                                    Size: @item.Size &nbsp;&bull;&nbsp; Color: @item.Color
+                                </div>
+
+                                <form asp-action="UpdateQuantity" method="post" class="cart-qty-form d-flex align-items-center gap-2 mt-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="cartItemId" value="@item.CartItemId" />
+                                    <button type="button" class="cart-qty-btn cart-qty-minus">&minus;</button>
+                                    <input type="number" name="quantity" value="@item.Quantity" min="1" class="cart-qty-input" readonly />
+                                    <button type="button" class="cart-qty-btn cart-qty-plus">+</button>
+                                </form>
+                            </div>
+
+                            <div class="cart-item-price">&#8369;@item.Price.ToString("N2")</div>
+
+                            <form asp-action="RemoveItem" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="cartItemId" value="@item.CartItemId" />
+                                <button type="submit" class="cart-remove-btn"><i class="ti ti-trash"></i></button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="cart-summary-card">
+                    <h5 class="fw-bold mb-3">Order Summary</h5>
+
+                    <div class="d-flex justify-content-between small mb-2">
+                        <span>Subtotal (@Model.Items.Sum(i => i.Quantity) items)</span>
+                        <span>&#8369;@Model.Subtotal.ToString("N2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-3">
+                        <span>Shipping Fee</span>
+                        <span>@(Model.ShippingFee == 0 ? "FREE" : "₱" + Model.ShippingFee.ToString("N2"))</span>
+                    </div>
+
+                    <hr />
+
+                    <div class="cart-promo-toggle d-flex justify-content-between align-items-center mb-3" data-bs-toggle="collapse" data-bs-target="#promoBox" role="button">
+                        <span>Promo Code</span> <i class="ti ti-chevron-down"></i>
+                    </div>
+                    <div class="collapse mb-3" id="promoBox">
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="Enter code" />
+                            <button type="button" class="btn btn-sm btn-outline-dark">Apply</button>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex justify-content-between align-items-end mb-1">
+                        <span class="fw-bold fs-5">Total</span>
+                        <span class="cart-total-amount">&#8369;@Model.Total.ToString("N2")</span>
+                    </div>
+                    <div class="text-muted small mb-3">Inclusive of VAT</div>
+
+                    <a asp-controller="Checkout" asp-action="Index" class="btn cart-checkout-btn w-100">
+                        <i class="ti ti-lock me-1"></i> Proceed to Checkout
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+    document.querySelectorAll('.cart-qty-form').forEach(form => {
+        const input = form.querySelector('.cart-qty-input');
+        form.querySelector('.cart-qty-minus').addEventListener('click', () => {
+            let val = parseInt(input.value);
+            if (val > 1) { input.value = val - 1; form.submit(); }
+        });
+        form.querySelector('.cart-qty-plus').addEventListener('click', () => {
+            input.value = parseInt(input.value) + 1;
+            form.submit();
+        });
+    });
+</script>
+}

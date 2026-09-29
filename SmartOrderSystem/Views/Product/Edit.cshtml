@@ -1,0 +1,80 @@
+@model SmartOrderSystem.Models.ShoeCatalog
+@{
+    ViewData["Title"] = "Edit Product";
+    var categories = ViewData["Categories"] as string[] ?? Array.Empty<string>();
+}
+
+<div class="form-page">
+    <a asp-action="Index" class="back-link">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i>
+        Back to product catalog
+    </a>
+
+    <div class="form-card" style="max-width: 800px;">
+        <h2 class="form-card-title">Edit product · @Model.shoe_id</h2>
+
+        <form asp-action="Edit" method="post" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="shoe_id" />
+            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+            <div class="form-group">
+                <label asp-for="brand">Brand</label>
+                <input asp-for="brand" class="form-input" />
+                <span asp-validation-for="brand" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="model_name">Model</label>
+                <input asp-for="model_name" class="form-input" />
+                <span asp-validation-for="model_name" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="color">Color Variant</label>
+                <input asp-for="color" class="form-input" />
+                <span asp-validation-for="color" class="field-error"></span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label asp-for="category">Category</label>
+                    <select asp-for="category" class="form-select">
+                        @foreach (var c in categories)
+                        {
+                            <option value="@c" selected="@(c == Model.category)">@c</option>
+                        }
+                    </select>
+                    <span asp-validation-for="category" class="field-error"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="status">Status</label>
+                    <select asp-for="status" class="form-select">
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="default_price">Base price (₱)</label>
+                <input asp-for="default_price" type="number" step="0.01" min="0" class="form-input" />
+                <span asp-validation-for="default_price" class="field-error"></span>
+            </div>
+
+            <div class="form-actions form-actions-bar">
+                <a asp-action="Index" class="btn-secondary">Cancel</a>
+                <button type="submit" class="btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

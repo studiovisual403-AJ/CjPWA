@@ -1,0 +1,127 @@
+@model SmartOrderSystem.Models.ProductsViewModel
+@{
+    ViewData["Title"] = "Products";
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+
+    int start = Model.TotalItems == 0 ? 0 : (Model.CurrentPage - 1) * Model.PageSize + 1;
+    int end = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalItems);
+}
+
+<div class="shop-container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="d-flex gap-2 category-pills">
+            <a href="/Shop/Products?sort=@Model.Sort" class="category-pill @(string.IsNullOrEmpty(Model.SelectedCategory) ? "active" : "")">All</a>
+            <a href="/Shop/Products?category=Running&sort=@Model.Sort" class="category-pill @(Model.SelectedCategory == "Running" ? "active" : "")">Running</a>
+            <a href="/Shop/Products?category=Basketball&sort=@Model.Sort" class="category-pill @(Model.SelectedCategory == "Basketball" ? "active" : "")">Basketball</a>
+            <a href="/Shop/Products?category=Lifestyle&sort=@Model.Sort" class="category-pill @(Model.SelectedCategory == "Lifestyle" ? "active" : "")">Lifestyle</a>
+            <a href="/Shop/Products?category=Casual&sort=@Model.Sort" class="category-pill @(Model.SelectedCategory == "Casual" ? "active" : "")">Casual</a>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0">Sort by:</label>
+            <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='/Shop/Products?category=@Model.SelectedCategory&sort=' + this.value">
+                <option value="" selected="@(string.IsNullOrEmpty(Model.Sort))">Featured</option>
+                <option value="newest" selected="@(Model.Sort == "newest")">Newest</option>
+                <option value="price_asc" selected="@(Model.Sort == "price_asc")">Price: Low to High</option>
+                <option value="price_desc" selected="@(Model.Sort == "price_desc")">Price: High to Low</option>
+            </select>
+        </div>
+    </div>
+
+    <p class="small text-muted mb-3">
+        Showing @start-@end of @Model.TotalItems products
+    </p>
+
+    <div class="row g-4">
+        @if (Model.Products.Any())
+        {
+            @foreach (var product in Model.Products)
+            {
+                string badgeClass = product.TotalStock == 0 ? "only-left"
+                                    : product.TotalStock <= 3 ? "low-stock"
+                                    : "in-stock";
+                string badgeText = product.TotalStock == 0 ? "Out of Stock"
+                                    : product.TotalStock == 1 ? "Only 1 left!"
+                                    : "In Stock";
+
+                <div class="col-md-3">
+                    <div class="product-card">
+                        <div class="product-thumb-wrap">
+                            <span class="stock-badge @badgeClass">@badgeText</span>
+                            <img src="@(string.IsNullOrEmpty(product.ImagePath) ? "/images/no-image.png" : product.ImagePath)"
+                                 class="product-thumb" alt="@product.ModelName" />
+                        </div>
+                        <div class="product-info">
+                            <h6 class="product-name">@product.ModelName</h6>
+                            <span class="product-cat">@product.Brand - @product.Category</span>
+                            <div class="product-price">
+                                ₱@product.Price.ToString("N2")
+                                @if (product.DiscountPercentage.HasValue)
+                                {
+                                    <small class="text-muted text-decoration-line-through">₱@product.OriginalPrice.ToString("N2")</small>
+                                }
+                            </div>
+                            @if (product.RatingCount > 0)
+                            {
+                                <div class="small text-warning">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <i class="ti @(i <= Math.Round(product.AvgRating) ? "ti-star-filled" : "ti-star")"></i>
+                                    }
+                                    <span class="text-muted">(@product.RatingCount)</span>
+                                </div>
+                            }
+                            <div class="d-flex gap-2 mt-2">
+                                <a href="/Shop/Details/@product.ShoeId" class="btn  btn-shop-outline-sm flex-fill">View Product</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+                else
+        {
+            <p class="text-muted">There are currently no products available in this category.</p>
+        }
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+
+            <nav>
+                <ul class="pagination mb-0 custom-page-link">
+                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled-btn" : "")">
+                        <a class="page-link" href="/Shop/Products?category=@Model.SelectedCategory&sort=@Model.Sort&page=@(Model.CurrentPage - 1)&pageSize=@Model.PageSize">
+                            <i class="ti ti-chevron-left"></i> Previous
+                        </a>
+                    </li>
+
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <li class="page-item">
+                            <a class="page-link @(i == Model.CurrentPage ? "active-red" : "")"
+                               href="/Shop/Products?category=@Model.SelectedCategory&sort=@Model.Sort&page=@i&pageSize=@Model.PageSize">@i</a>
+                        </li>
+                    }
+
+                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled-btn" : "")">
+                        <a class="page-link" href="/Shop/Products?category=@Model.SelectedCategory&sort=@Model.Sort&page=@(Model.CurrentPage + 1)&pageSize=@Model.PageSize">
+                            Next <i class="ti ti-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="small text-muted">Show:</span>
+                <select class="form-select form-select-sm" style="width:auto;" onchange="location.href='/Shop/Products?category=@Model.SelectedCategory&sort=@Model.Sort&pageSize=' + this.value">
+                    <option value="12" selected="@(Model.PageSize == 12)">12 per page</option>
+                    <option value="24" selected="@(Model.PageSize == 24)">24 per page</option>
+                    <option value="48" selected="@(Model.PageSize == 48)">48 per page</option>
+                </select>
+            </div>
+        </div>
+    }
+</div>

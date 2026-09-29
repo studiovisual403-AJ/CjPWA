@@ -1,0 +1,155 @@
+@model List<SmartOrderSystem.Models.ShoeCatalog>
+@using SmartOrderSystem.Helpers
+@{
+    ViewData["Title"] = "Product Catalog";
+
+    var search = ViewData["Search"] as string ?? "";
+    var currentPage = (int)(ViewData["CurrentPage"] ?? 1);
+    var totalPages = (int)(ViewData["TotalPages"] ?? 1);
+    var totalCount = (int)(ViewData["TotalCount"] ?? 0);
+}
+
+<div class="catalog-toolbar">
+    <p class="catalog-subtitle">Manage shoe models, brands, and pricing</p>
+    <a asp-action="Create" class="btn-primary">
+        <i class="ti ti-plus" aria-hidden="true"></i>
+        Add new product
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert-success" role="status">
+        <i class="ti ti-check" aria-hidden="true"></i>
+        <span>@TempData["Success"]</span>
+    </div>
+}
+
+<div class="catalog-card">
+
+    <form method="get" asp-action="Index" class="catalog-search-bar">
+        @await Html.PartialAsync("~/Views/Shared/_SearchField.cshtml", ("search", search, "Search by brand or model...", "search-input-wrap", "search-input", "ti ti-search", false))
+    </form>
+
+    <div class="table-scroll">
+        <table class="catalog-table">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product</th>
+                    <th>Color</th> 
+                    <th>Category</th>
+                    <th>Base price</th>
+                    <th>Status</th>
+                    <th class="actions-header">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    @await Html.PartialAsync("~/Views/Shared/_EmptyState.cshtml", ("No products match your search.", "Try a different keyword or add a new product.", "ti ti-package-off", 7))
+                }
+                @foreach (var p in Model)
+                {
+                    var coverPath = p.Images?.OrderBy(i => i.DisplayOrder).FirstOrDefault(i => i.IsCover)?.FilePath
+                                    ?? p.Images?.OrderBy(i => i.DisplayOrder).FirstOrDefault()?.FilePath
+                                    ?? p.image_path;
+                    var currentPromo = PromotionHelper.GetCurrentPromotion(p);
+                    <tr>
+                        <td class="cell-id">@p.shoe_id</td>
+                        <td>
+                            <div class="product-info">
+                                @if (!string.IsNullOrEmpty(coverPath))
+                                {
+                                    <img src="@coverPath" class="product-thumb" alt="@p.model_name" />
+                                }
+                                else
+                                {
+                                    <img src="~/images/no-image.png" class="product-thumb" alt="No Image" />
+                                }
+                                <div>
+                                    <strong style="display: block; font-size: 0.95rem;">@p.brand</strong>
+                                    <span class="text-muted" style="font-size: 0.85rem;">@p.model_name</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>@p.color</td> 
+                        <td>@p.category</td>
+                        <td>
+                            @if (currentPromo != null)
+                            {
+                                var effectivePrice = PromotionHelper.GetEffectivePrice(p.default_price, currentPromo);
+                                <span style="color:#dc2626; font-weight:700;">@effectivePrice.ToString("₱#,##0.00")</span><br />
+                                <span style="text-decoration:line-through; color:#94a3b8; font-size:0.8rem;">@p.default_price.ToString("₱#,##0.00")</span>
+                            }
+                            else
+                            {
+                                @p.default_price.ToString("₱#,##0.00")
+                            }
+                        </td>
+                        <td>
+                            @if (p.status == "Active")
+                            {
+                                <span class="badge badge-active">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-inactive">Inactive</span>
+                            }
+                        </td>
+                        <td class="actions-cell">
+                            <div class="row-actions">
+                                <!-- Edit Button -->
+                                <a asp-action="Edit" asp-route-id="@p.shoe_id" class="icon-btn" title="Edit">
+                                    <i class="ti ti-pencil" aria-hidden="true"></i>
+                                    <span class="btn-label">Edit</span>
+                                </a>
+                                <!-- Images Button -->
+                                <a asp-action="ManageImages" asp-route-id="@p.shoe_id" class="icon-btn" title="Images">
+                                    <i class="ti ti-photo" aria-hidden="true"></i>
+                                    <span class="btn-label">Images</span>
+                                </a>
+                                <!-- Promotion Button -->
+                                <a asp-action="Promotion" asp-route-id="@p.shoe_id" class="icon-btn icon-btn-promotion" title="Promotion">
+                                    <i class="ti ti-speakerphone" aria-hidden="true"></i>
+                                    <span class="btn-label">Promo</span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="catalog-footer">
+        <span class="catalog-count">
+            Showing @Model.Count of @totalCount product@(totalCount == 1 ? "" : "s")
+        </span>
+
+        <div class="pagination">
+            <a class="page-btn @(currentPage <= 1 ? "disabled" : "")"
+               asp-action="Index" asp-route-search="@search" asp-route-page="@(currentPage - 1)">
+                <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                Previous
+            </a>
+
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <a class="page-num @(i == currentPage ? "active" : "")"
+                   asp-action="Index" asp-route-search="@search" asp-route-page="@i">@i</a>
+            }
+
+            <a class="page-btn @(currentPage >= totalPages ? "disabled" : "")"
+               asp-action="Index" asp-route-search="@search" asp-route-page="@(currentPage + 1)">
+                Next
+                <i class="ti ti-chevron-right" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}

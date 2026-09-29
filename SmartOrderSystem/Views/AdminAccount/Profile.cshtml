@@ -1,0 +1,12 @@
+@model SmartOrderSystem.Models.Admin
+@{
+    ViewData["Title"] = "Admin Profile";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+<h1>Admin Profile</h1>
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <p class="mb-1"><strong>Name:</strong> @Model.full_name</p>
+        <p class="mb-0"><strong>Email:</strong> @Model.email</p>
+    </div>
+</div>

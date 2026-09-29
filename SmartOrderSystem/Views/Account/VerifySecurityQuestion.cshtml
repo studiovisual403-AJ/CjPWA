@@ -1,0 +1,104 @@
+@model SmartOrderSystem.ViewModels.SecurityQuestionViewModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify Your Identity - CJ Shoes</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .card { background: #ffffff; width: 100%; max-width: 540px; padding: 40px 32px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; }
+        .icon-container { display: flex; justify-content: center; margin-bottom: 24px; }
+        .icon-circle { width: 56px; height: 56px; background-color: #fef2f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc2626; }
+        .icon-circle svg { width: 28px; height: 28px; }
+        .text-center { text-align: center; margin-bottom: 28px; }
+        .text-center h2 { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+        .text-center p { font-size: 14px; color: #64748b; }
+        .question-box { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9; }
+        .question-box:last-of-type { border-bottom: none; margin-bottom: 10px; }
+        .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .q-number { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #dc2626; }
+        .q-text { font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 10px; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-wrapper svg { position: absolute; left: 14px; width: 18px; height: 18px; color: #94a3b8; }
+        .form-control { width: 100%; padding: 11px 16px 11px 42px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; color: #1e293b; outline: none; transition: all 0.2s; }
+        .form-control:focus { background-color: #ffffff; border-color: #dc2626; box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1); }
+        .helper-text { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .button-group { display: flex; gap: 12px; margin-top: 24px; }
+        .btn-back { flex: 1; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; }
+        .btn-back:hover { background: #f1f5f9; }
+        .btn-verify { flex: 2; background: #b91c1c; color: white; border: none; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-verify:hover { background: #991b1b; }
+        .validation-summary-errors, .field-validation-error { color: #b91c1c; font-size: 12px; }
+        .validation-summary-errors { margin-bottom: 16px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; }
+        .field-validation-error { display: block; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="icon-container">
+            <div class="icon-circle">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <h2>Verify Your Identity</h2>
+            <p>Please answer the following security questions to verify your identity.</p>
+        </div>
+
+        @using (Html.BeginForm("VerifyAnswers", "Account", FormMethod.Post))
+        {
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors" role="alert"></div>
+
+            <!-- Question 1 -->
+            <div class="question-box">
+                <div class="q-header">
+                    <span class="q-number">Question 1 of 2</span>
+                </div>
+                <p class="q-text">@Model.Question1Text</p>
+                <div class="input-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <input asp-for="Answer1" type="text" placeholder="Enter your answer" class="form-control" autocomplete="off" />
+                </div>
+                <span asp-validation-for="Answer1" class="field-validation-error"></span>
+                <p class="helper-text">This answer is case-insensitive.</p>
+            </div>
+
+            <!-- Question 2 -->
+            <div class="question-box">
+                <div class="q-header">
+                    <span class="q-number">Question 2 of 2</span>
+                </div>
+                <p class="q-text">@Model.Question2Text</p>
+                <div class="input-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <input asp-for="Answer2" type="text" placeholder="Enter your answer" class="form-control" autocomplete="off" />
+                </div>
+                <span asp-validation-for="Answer2" class="field-validation-error"></span>
+                <p class="helper-text">This answer is case-insensitive.</p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+                <a href="@Url.Action("ForgotPassword", "Account")" class="btn-back">Back</a>
+                <button type="submit" class="btn-verify">Verify Answers</button>
+            </div>
+        }
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,235 @@
+@model SmartOrderSystem.Models.ProductPromotion
+@{
+    ViewData["Title"] = "Manage Promotion";
+    var product = ViewData["Product"] as SmartOrderSystem.Models.ShoeCatalog;
+}
+
+<div class="promo-container">
+
+    <a asp-action="Index" class="promo-back-link">
+        <i class="ti ti-arrow-left"></i> Back to Product Catalog
+    </a>
+
+    <div class="promo-card">
+        <div class="promo-header">
+            <div>
+                <h2 class="promo-title">Manage Promotion</h2>
+                <p class="promo-subtitle">Create and manage promotions for this product.</p>
+            </div>
+            @if (Model.status == "Active" && Model.promotion_id != 0)
+            {
+                <span class="promo-status-badge promo-status-active">
+                    <span class="dot"></span> Promotion is Active
+                </span>
+            }
+        </div>
+
+        <div class="promo-product-summary">
+            <div class="promo-product-thumb">
+                @if (product?.image_path != null)
+                {
+                    <img src="@product.image_path" alt="@product.model_name" />
+                }
+                else
+                {
+                    <i class="ti ti-shoe"></i>
+                }
+            </div>
+            <div>
+                <h4>@product?.brand</h4>
+                <p>@product?.model_name</p>
+                <span class="promo-original-price">Original Price: ₱<span id="originalPriceText">@product?.default_price.ToString("N2")</span></span>
+            </div>
+        </div>
+
+        <form asp-action="Promotion" method="post" id="promoForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="promotion_id" />
+            <input type="hidden" asp-for="shoe_id" />
+            <input type="hidden" id="originalPriceValue" value="@product?.default_price" />
+
+            <h5 class="promo-section-title">Promotion Information</h5>
+
+            <div class="promo-grid">
+                <div class="promo-field">
+                    <label>Promotion Name <span class="req">*</span></label>
+                    <input asp-for="campaign_name" class="promo-input" placeholder="e.g. Back to School Sale" required maxlength="100" />
+                    <span asp-validation-for="campaign_name" class="promo-error"></span>
+                </div>
+
+                <div class="promo-field">
+                    <label>Start Date <span class="req">*</span></label>
+                    <input asp-for="start_date" type="date" class="promo-input" required />
+                </div>
+
+                <div class="promo-field">
+                    <label>Discount Value (%) <span class="req">*</span></label>
+                    <input asp-for="discount_percentage" type="number" step="0.01" min="0" max="100" class="promo-input" id="discountValue" required />
+                    <span asp-validation-for="discount_percentage" class="promo-error"></span>
+                </div>
+
+                <div class="promo-field">
+                    <label>End Date <span class="req">*</span></label>
+                    <input asp-for="end_date" type="date" class="promo-input" required />
+                </div>
+
+                <div class="promo-field promo-full-width">
+                    <label>Status <span class="req">*</span></label>
+                    <div class="promo-radio-group">
+                        <label class="promo-radio">
+                            <input type="radio" asp-for="status" value="Active" checked="@(Model.status == "Active")" /> Active
+                        </label>
+                        <label class="promo-radio">
+                            <input type="radio" asp-for="status" value="Inactive" checked="@(Model.status == "Inactive")" /> Inactive
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="promo-info-box">
+                <i class="ti ti-info-circle"></i>
+                The promotion will be applied automatically during the active date range.
+            </div>
+
+            <div class="promo-preview-section">
+                <h5 class="promo-section-title">Preview</h5>
+                <div class="promo-preview-grid">
+                    <div class="promo-preview-card">
+                        <p class="promo-preview-label">Store Display Preview</p>
+                        <div class="promo-preview-item">
+                            <div class="promo-preview-thumb">
+                                @if (product?.image_path != null)
+                                {
+                                    <img src="@product.image_path" alt="@product.model_name" />
+                                }
+                                <span class="promo-preview-badge" id="previewLabel">0% OFF</span>
+                            </div>
+                            <div>
+                                <p class="promo-preview-name">@product?.brand</p>
+                                <p class="promo-preview-model">@product?.model_name</p>
+                                <p class="promo-preview-price">
+                                    <span class="promo-discounted" id="previewDiscountedPrice">₱0.00</span>
+                                    <span class="promo-original" id="previewOriginalPrice">₱@product?.default_price.ToString("N2")</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="promo-breakdown-card">
+                        <p class="promo-preview-label">Discount Breakdown</p>
+                        <div class="promo-breakdown-row">
+                            <span>Original Price</span>
+                            <span id="breakdownOriginal">₱@product?.default_price.ToString("N2")</span>
+                        </div>
+                        <div class="promo-breakdown-row">
+                            <span>Discount (<span id="breakdownPercentLabel">0%</span>)</span>
+                            <span class="promo-negative" id="breakdownDiscount">- ₱0.00</span>
+                        </div>
+                        <div class="promo-breakdown-row promo-breakdown-total">
+                            <span>Discounted Price</span>
+                            <span id="breakdownFinal">₱0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="promo-footer">
+                <a asp-action="Index" class="promo-btn promo-btn-secondary">Cancel</a>
+                <button type="submit" class="promo-btn promo-btn-danger-solid">Save Promotion</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const originalPrice = parseFloat(document.getElementById('originalPriceValue').value) || 0;
+            const discountValueInput = document.getElementById('discountValue');
+
+            function updatePreview() {
+                let discount = parseFloat(discountValueInput.value) || 0;
+                if (discount > 100) discount = 100;
+                if (discount < 0) discount = 0;
+
+                const discountAmount = originalPrice * discount / 100;
+                const finalPrice = originalPrice - discountAmount;
+
+                document.getElementById('previewDiscountedPrice').textContent = '₱' + finalPrice.toFixed(2);
+                document.getElementById('breakdownOriginal').textContent = '₱' + originalPrice.toFixed(2);
+                document.getElementById('breakdownDiscount').textContent = '- ₱' + discountAmount.toFixed(2);
+                document.getElementById('breakdownFinal').textContent = '₱' + finalPrice.toFixed(2);
+                document.getElementById('breakdownPercentLabel').textContent = discount + '%';
+                document.getElementById('previewLabel').textContent = discount + '% OFF';
+            }
+
+            discountValueInput.addEventListener('input', updatePreview);
+            updatePreview();
+        })();
+    </script>
+
+    <style>
+        .promo-container { max-width: 900px; }
+        .promo-back-link { display: inline-flex; align-items: center; gap: 6px; color: #dc2626; text-decoration: none; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
+        .promo-back-link:hover { text-decoration: underline; }
+
+        .promo-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; }
+        .promo-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .promo-title { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
+        .promo-subtitle { font-size: 13px; color: #64748b; margin: 0; }
+
+        .promo-status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .promo-status-active { background: #dcfce7; color: #16a34a; }
+        .promo-status-active .dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+
+        .promo-product-summary { display: flex; gap: 16px; align-items: center; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 24px; }
+        .promo-product-thumb { width: 70px; height: 48px; background: #fff; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e2e8f0; flex-shrink: 0; }
+        .promo-product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .promo-product-summary h4 { margin: 0; font-size: 15px; color: #0f172a; }
+        .promo-product-summary p { margin: 0; font-size: 13px; color: #64748b; }
+        .promo-original-price { font-size: 13px; color: #334155; font-weight: 600; }
+
+        .promo-section-title { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0; }
+
+        .promo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; margin-bottom: 18px; }
+        .promo-full-width { grid-column: 1 / -1; }
+        .promo-field label { display: block; font-size: 13px; font-weight: 500; color: #334155; margin-bottom: 6px; }
+        .promo-field .req { color: #dc2626; }
+        .promo-input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; color: #0f172a; box-sizing: border-box; }
+        .promo-input:focus { outline: none; border-color: #dc2626; }
+        .promo-error { color: #dc2626; font-size: 12px; }
+
+        .promo-radio-group { display: flex; gap: 20px; padding-top: 8px; }
+        .promo-radio { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; cursor: pointer; }
+        .promo-radio input { accent-color: #16a34a; }
+
+        .promo-info-box { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+
+        .promo-preview-section { background: #f8fafc; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+        .promo-preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .promo-preview-label { font-size: 12px; font-weight: 600; color: #64748b; margin: 0 0 10px 0; }
+
+        .promo-preview-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+        .promo-preview-item { display: flex; gap: 12px; align-items: flex-start; }
+        .promo-preview-thumb { position: relative; width: 70px; height: 70px; background: #f1f5f9; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+        .promo-preview-thumb img { width: 100%; height: 100%; object-fit: contain; }
+        .promo-preview-badge { position: absolute; top: 4px; left: 4px; background: #dc2626; color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        .promo-preview-name { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+        .promo-preview-model { font-size: 12px; color: #64748b; margin: 0 0 6px 0; }
+        .promo-preview-price { margin: 0; }
+        .promo-discounted { color: #dc2626; font-weight: 700; font-size: 14px; margin-right: 6px; }
+        .promo-original { color: #94a3b8; text-decoration: line-through; font-size: 12px; }
+
+        .promo-breakdown-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
+        .promo-breakdown-row { display: flex; justify-content: space-between; font-size: 13px; color: #334155; padding: 6px 0; }
+        .promo-negative { color: #dc2626; }
+        .promo-breakdown-total { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 10px; font-weight: 700; color: #0f172a; }
+
+        .promo-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        .promo-btn { padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid transparent; text-decoration: none; }
+        .promo-btn-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
+        .promo-btn-secondary:hover { background: #f1f5f9; }
+        .promo-btn-danger-solid { background: #dc2626; color: #fff; border: none; }
+        .promo-btn-danger-solid:hover { background: #b91c1c; }
+    </style>
+}

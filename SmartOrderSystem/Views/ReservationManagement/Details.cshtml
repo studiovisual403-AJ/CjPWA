@@ -1,0 +1,269 @@
+@model SmartOrderSystem.ViewModels.ReservationDetailsViewModel
+
+@{
+    ViewData["Title"] = "Reservation Details";
+
+    string badgeClass = Model.Status switch
+    {
+        "Pending" => "bg-warning text-dark",
+        "Approved" => "bg-success",
+        "Expired" => "bg-danger",
+        "Converted" => "bg-primary",
+        "Cancelled" => "bg-secondary",
+        _ => "bg-secondary"
+    };
+
+    string statusText = Model.Status switch
+    {
+        "Pending" => "Pending Approval",
+        "Approved" => "Approved",
+        "Expired" => "Expired",
+        "Converted" => "Converted to Order",
+        "Cancelled" => "Cancelled / Rejected",
+        _ => Model.Status
+    };
+
+    string statusDesc = Model.Status switch
+    {
+        "Pending" => "This reservation is awaiting administrator approval.",
+        "Approved" => "This reservation has been approved and is ready to convert.",
+        "Expired" => "This reservation has expired.",
+        "Converted" => "This reservation has been converted into an order.",
+        "Cancelled" => "This reservation was rejected or cancelled.",
+        _ => ""
+    };
+
+    string statusTextColor = Model.Status switch
+    {
+        "Pending" => "text-warning",
+        "Approved" => "text-success",
+        "Expired" => "text-danger",
+        "Converted" => "text-primary",
+        "Cancelled" => "text-secondary",
+        _ => "text-secondary"
+    };
+
+    string statusIconBg = Model.Status switch
+    {
+        "Pending" => "bg-warning-subtle text-warning",
+        "Approved" => "bg-success-subtle text-success",
+        "Expired" => "bg-danger-subtle text-danger",
+        "Converted" => "bg-primary-subtle text-primary",
+        "Cancelled" => "bg-secondary-subtle text-secondary",
+        _ => "bg-secondary-subtle text-secondary"
+    };
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mx-4 mt-3">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="container-fluid p-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h2 class="fw-bold mb-0">Reservation #RES-@Model.ReservationId.ToString("D4")</h2>
+                <span class="badge rounded-pill @badgeClass px-3 py-2">
+                    <i class="ti ti-clock me-1"></i>@statusText
+                </span>
+            </div>
+            <div class="text-muted">
+                Review customer reservation details and approve or reject the reservation.
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a asp-action="Index" class="btn btn-outline-secondary px-4">
+                <i class="ti ti-arrow-left me-1"></i>
+                Back to Reservations
+            </a>
+
+            @if (Model.Status == "Pending")
+            {
+                <!-- Reject maps to "Cancelled" status, which the controller accepts for Pending -->
+                <form asp-action="UpdateStatus" asp-route-id="@Model.ReservationId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="status" value="Cancelled" />
+                    <button type="submit" class="btn btn-outline-danger px-4">
+                        <i class="ti ti-x me-1"></i>
+                        Reject
+                    </button>
+                </form>
+
+                <form asp-action="Approve" asp-route-id="@Model.ReservationId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success px-4">
+                        <i class="ti ti-check me-1"></i>
+                        Approve
+                    </button>
+                </form>
+            }
+
+            @if (Model.Status == "Approved")
+            {
+                <form asp-action="UpdateStatus" asp-route-id="@Model.ReservationId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="status" value="Cancelled" />
+                    <button type="submit" class="btn btn-outline-danger px-4">
+                        <i class="ti ti-x me-1"></i>
+                        Cancel
+                    </button>
+                </form>
+
+            }
+
+        </div>
+
+    </div>
+
+    <!-- Status / Expiry banner -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="row g-4 align-items-center">
+
+                <div class="col-md-6 d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center @statusIconBg"
+                         style="width:56px;height:56px;">
+                        <i class="ti ti-clock fs-3"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Reservation Status</small>
+                        <div class="fw-bold fs-5 @statusTextColor">@statusText</div>
+                        <small class="text-muted">@statusDesc</small>
+                    </div>
+                </div>
+
+                @if (Model.ExpiresAt != null && Model.Status == "Pending")
+                {
+                    <div class="col-md-6 d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                             style="width:56px;height:56px;">
+                            <i class="ti ti-hourglass fs-3"></i>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block">Expires in</small>
+                            <div class="fw-bold fs-5 text-warning" id="countdown" data-expiry="@Model.ExpiresAt.Value.ToString("o")">
+                                --
+                            </div>
+                            <small class="text-muted">@Model.ExpiresAt.Value.ToString("MMMM dd, yyyy hh:mm tt")</small>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Customer -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="ti ti-user me-2"></i>
+                    Customer Information
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Customer Name</small>
+                        <h6 class="mb-0">@Model.CustomerName</h6>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Email Address</small>
+                        <div>@Model.CustomerEmail</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">Phone Number</small>
+                        <div>@Model.CustomerPhone</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shoe -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="ti ti-shoe me-2"></i>
+                    Shoe Information
+                </div>
+                <div class="card-body text-center">
+                    <img src="@Model.ImagePath" class="img-fluid rounded mb-3" style="height:160px;object-fit:contain;" />
+                    <h4 class="fw-bold mb-1">@Model.ShoeName</h4>
+                    <div class="text-muted mb-2">@Model.Brand &bull; @Model.Category</div>
+                    <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">@Model.Category</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reservation -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold py-3">
+                    <i class="ti ti-calendar me-2"></i>
+                    Reservation Details
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <small class="text-muted">Quantity</small>
+                        <strong>@Model.Quantity</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <small class="text-muted">Price</small>
+                        <strong>&#8369;@Model.Price.ToString("N2")</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <small class="text-muted">Date Created</small>
+                        <span>@Model.ReservationDate.ToString("MMMM dd, yyyy hh:mm tt")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <small class="text-muted">Expiry Date</small>
+                        @if (Model.ExpiresAt != null)
+                        {
+                            <span class="text-danger fw-semibold">@Model.ExpiresAt.Value.ToString("MMMM dd, yyyy hh:mm tt")</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Not Set</span>
+                        }
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">Reservation ID</small>
+                        <strong>RES-@Model.ReservationId.ToString("D4")</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        const countdownEl = document.getElementById('countdown');
+        if (countdownEl) {
+            const expiry = new Date(countdownEl.dataset.expiry);
+            function updateCountdown() {
+                const diff = expiry - new Date();
+                if (diff <= 0) {
+                    countdownEl.textContent = "Expired";
+                    return;
+                }
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                countdownEl.textContent = `${h}h ${m}m`;
+            }
+            updateCountdown();
+            setInterval(updateCountdown, 60000);
+        }
+    </script>
+}

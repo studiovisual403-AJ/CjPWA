@@ -1,0 +1,224 @@
+@model SmartOrderSystem.ViewModels.SalesDetailsViewModel
+
+@{
+    ViewData["Title"] = "Sales Detailed Report";
+    Layout = "_AdminLayout";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+}
+
+<div class="sd-page">
+
+    <div class="sd-header">
+        <div>
+            <h1>Sales Detailed Report</h1>
+            <p class="sd-breadcrumb">Dashboard &nbsp;&rsaquo;&nbsp; Sales &amp; Reports &nbsp;&rsaquo;&nbsp; Sales Detailed Report</p>
+        </div>
+    </div>
+    <!-- FILTER BAR -->
+    <div class="sd-card sd-filter-card">
+        <div class="sd-filter-top">
+            <h3>Report Filters</h3>
+            <div class="sd-export-group">
+                <button type="button" class="sd-btn sd-btn-excel" id="btnExportExcel">
+                    <i class="ti ti-file-spreadsheet"></i> Export CSV
+                </button>
+                <button type="button" class="sd-btn sd-btn-outline" id="btnExportPdf">
+                    <i class="ti ti-file-type-pdf"></i> Export PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="sd-filter-row">
+            <div class="sd-filter-group">
+                <label>Date Range</label>
+                <div class="sd-date-range">
+                    <i class="ti ti-calendar"></i>
+                    <input type="date" id="filterStartDate" value="@Model.DateStart.ToString("yyyy-MM-dd")" />
+                    <span>&mdash;</span>
+                    <input type="date" id="filterEndDate" value="@Model.DateEnd.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+
+            <div class="sd-filter-group">
+                <label>Brand</label>
+                <select id="filterBrand">
+                    <option value="">All Brands</option>
+                    @foreach (var b in Model.BrandOptions)
+                    {
+                        <option value="@b" selected="@(Model.SelectedBrand == b)">@b</option>
+                    }
+                </select>
+            </div>
+
+            <div class="sd-filter-group">
+                <label>Category</label>
+                <select id="filterCategory">
+                    <option value="">All Categories</option>
+                    @foreach (var c in Model.CategoryOptions)
+                    {
+                        <option value="@c" selected="@(Model.SelectedCategory == c)">@c</option>
+                    }
+                </select>
+            </div>
+
+            <div class="sd-filter-group">
+                <label>Order Status</label>
+                <select id="filterStatus">
+                    <option value="">All Status</option>
+                    @foreach (var s in Model.StatusOptions)
+                    {
+                        <option value="@s" selected="@(Model.SelectedStatus == s)">@s</option>
+                    }
+                </select>
+            </div>
+
+            <button type="button" class="sd-generate-btn" id="btnGenerateReport">
+                <i class="ti ti-filter"></i> Generate Report
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="sd-kpi-grid" id="kpiGrid">
+        <div class="sd-kpi-card">
+            <div class="sd-kpi-icon green"><i class="ti ti-chart-line"></i></div>
+            <div class="sd-kpi-label">TOTAL SALES</div>
+            <div class="sd-kpi-value" id="kpiTotalSales">@Model.TotalSales.ToString("C0")</div>
+            <div class="sd-kpi-growth @(Model.TotalSalesGrowth >= 0 ? "up" : "down")" id="kpiTotalSalesGrowth">
+                <i class="ti @(Model.TotalSalesGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
+                @Math.Abs(Model.TotalSalesGrowth)% from last month
+            </div>
+        </div>
+
+        <div class="sd-kpi-card">
+            <div class="sd-kpi-icon blue"><i class="ti ti-clipboard-check"></i></div>
+            <div class="sd-kpi-label">COMPLETED ORDERS</div>
+            <div class="sd-kpi-value" id="kpiCompletedOrders">@Model.CompletedOrders</div>
+            <div class="sd-kpi-growth @(Model.CompletedOrdersGrowth >= 0 ? "up" : "down")" id="kpiCompletedOrdersGrowth">
+                <i class="ti @(Model.CompletedOrdersGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
+                @Math.Abs(Model.CompletedOrdersGrowth)% from last month
+            </div>
+        </div>
+
+        <div class="sd-kpi-card">
+            <div class="sd-kpi-icon purple"><i class="ti ti-shopping-bag"></i></div>
+            <div class="sd-kpi-label">TOTAL PRODUCTS SOLD</div>
+            <div class="sd-kpi-value" id="kpiProductsSold">@Model.TotalProductsSold</div>
+            <div class="sd-kpi-growth @(Model.TotalProductsSoldGrowth >= 0 ? "up" : "down")" id="kpiProductsSoldGrowth">
+                <i class="ti @(Model.TotalProductsSoldGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
+                @Math.Abs(Model.TotalProductsSoldGrowth)% from last month
+            </div>
+        </div>
+
+        <div class="sd-kpi-card">
+            <div class="sd-kpi-icon orange"><i class="ti ti-chart-bar"></i></div>
+            <div class="sd-kpi-label">AVERAGE ORDER VALUE</div>
+            <div class="sd-kpi-value" id="kpiAvgOrderValue">@Model.AverageOrderValue.ToString("C0")</div>
+            <div class="sd-kpi-growth @(Model.AverageOrderValueGrowth >= 0 ? "up" : "down")" id="kpiAvgOrderValueGrowth">
+                <i class="ti @(Model.AverageOrderValueGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
+                @Math.Abs(Model.AverageOrderValueGrowth)% from last month
+            </div>
+        </div>
+
+        <div class="sd-kpi-card sd-kpi-highlight">
+            <div class="sd-kpi-icon red"><i class="ti ti-star-filled"></i></div>
+            <div class="sd-kpi-label">BEST SELLING PRODUCT</div>
+            <div class="sd-kpi-value sd-kpi-value-sm" id="kpiBestProduct">@Model.BestSellingProductName</div>
+            <div class="sd-kpi-sub" id="kpiBestProductUnits">@Model.BestSellingProductUnits units sold</div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="sd-charts-grid">
+        <div class="sd-card">
+            <div class="sd-card-header">
+                <h3>Monthly Sales Trend</h3>
+            </div>
+            <canvas id="monthlyTrendChart"></canvas>
+        </div>
+
+        <div class="sd-card">
+            <div class="sd-card-header">
+                <h3>Sales by Brand</h3>
+            </div>
+            <div class="sd-donut-wrapper">
+                <canvas id="brandDonutChart"></canvas>
+            </div>
+            <div class="sd-legend" id="brandLegend"></div>
+        </div>
+
+        <div class="sd-card">
+            <div class="sd-card-header">
+                <h3>Sales by Category</h3>
+            </div>
+            <canvas id="categoryBarChart"></canvas>
+        </div>
+
+        <div class="sd-card">
+            <div class="sd-card-header">
+                <h3>Order Status Distribution</h3>
+            </div>
+            <div class="sd-donut-wrapper">
+                <canvas id="statusDonutChart"></canvas>
+            </div>
+            <div class="sd-legend" id="statusLegend"></div>
+        </div>
+    </div>
+
+    <!-- TABLES ROW -->
+    <div class="sd-tables-grid">
+        <div class="sd-card">
+            <div class="sd-card-header">
+                <h3>Best Selling Products</h3>
+            </div>
+            <div class="sd-products-table" id="bestSellingTable"></div>
+        </div>
+
+        <div class="sd-card">
+            <div class="sd-card-header sd-tx-header">
+                <h3>Sales Transactions</h3>
+                <div class="sd-tx-search">
+                    <i class="ti ti-search"></i>
+                    <input type="text" id="txSearch" placeholder="Search order ID, customer..." />
+                </div>
+            </div>
+            <div class="sd-tx-table-wrap">
+                <table class="sd-tx-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txTableBody"></tbody>
+                </table>
+            </div>
+            <div class="sd-tx-footer">
+                <span id="txShowingText">Showing 0 entries</span>
+                <div class="sd-pagination" id="txPagination"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        window.salesDetailsInitial = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+        window.salesDetailsUrls = {
+            data: '@Url.Action("IndexData", "Sales")'
+        };
+    </script>
+    <script src="~/js/sales-charts.js" asp-append-version="true"></script>
+}

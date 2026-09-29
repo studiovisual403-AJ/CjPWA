@@ -1,0 +1,35 @@
+@model SmartOrderSystem.ViewModels.CheckoutOrderSummaryViewModel
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    ViewData["Title"] = "Checkout";
+}
+
+<div class="container-fluid p-4">
+    <h2 class="fw-bold mb-4">Checkout</h2>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Review Your Items</h5>
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="d-flex align-items-center gap-3 border-bottom py-3">
+                            <img src="@(item.ImagePath ?? "/images/no-image.png")" class="rounded border" style="width:70px;height:70px;object-fit:contain;" />
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">@item.ShoeName</div>
+                                <div class="text-muted small">@item.Brand · Size @item.Size · @item.Color</div>
+                                <div class="text-muted small">Qty: @item.Quantity</div>
+                            </div>
+                            <div class="fw-bold">₱@item.LineTotal.ToString("N2")</div>
+                        </div>
+                    }
+                    <a asp-action="Delivery" class="btn btn-danger w-100 mt-4">Continue to Delivery <i class="ti ti-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            @await Html.PartialAsync("_OrderSummary", Model)
+        </div>
+    </div>
+</div>

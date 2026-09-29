@@ -1,0 +1,360 @@
+@model SmartOrderSystem.Models.Order
+
+@{
+    ViewData["Title"] = "Order Details";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    string s = Model.status?.Trim().ToLower() ?? "";
+    string sClass = s.Replace(" ", "-");
+
+    bool isPending = s == "pending";
+    bool isConfirmed = s == "confirmed";
+    bool isPreparing = s == "preparing";
+    bool isInTransit = s == "in transit";
+    bool isDelivered = s == "delivered";
+    bool isCompleted = s == "completed";
+    bool isCancelled = s == "cancelled";
+
+    bool canConfirm = isPending;
+    bool canCancel = isPending || isConfirmed || isPreparing;
+    bool canPrint = !isPending;
+    bool canNotify = !isPending && !isCancelled;
+    bool canMarkAsPaid = isDelivered;
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mx-1 mt-2">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="oa-page-header mb-4">
+    <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none text-muted p-0 mb-2 d-inline-flex align-items-center">
+        <i class="ti ti-arrow-left me-1"></i> Back to Orders
+    </a>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1 class="text-dark fw-bold mb-1">Order #ORD-@Model.order_id.ToString("D4")</h1>
+            <p class="text-muted mb-0">Placed on @Model.order_date.ToString("MMM dd, yyyy hh:mm tt")</p>
+        </div>
+        <span class="oa-current-status-label">Current Status: <span class="badge oa-status-badge oa-status-@sClass">@Model.status</span></span>
+    </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        @if (isCancelled)
+        {
+            <div class="oa-timeline-wrapper">
+                <div class="oa-timeline-step oa-cancelled">
+                    <div class="oa-timeline-icon"><i class="ti ti-x"></i></div>
+                    <div class="oa-timeline-text">Order Cancelled</div>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.cancellation_reason))
+            {
+                <div class="alert alert-danger border-0 mt-3 mb-0 small">
+                    <strong>Reason:</strong> @Model.cancellation_reason
+                </div>
+            }
+        }
+        else
+        {
+            bool afterConfirmed = isPreparing || isInTransit || isDelivered || isCompleted;
+            bool afterPreparing = isInTransit || isDelivered || isCompleted;
+            bool afterInTransit = isDelivered || isCompleted;
+
+            <div class="oa-timeline-wrapper">
+                <div class="oa-timeline-step @(isPending ? "oa-active" : "oa-completed")">
+                    <div class="oa-timeline-icon">@(isPending ? "1" : "✓")</div>
+                    <div class="oa-timeline-text">Placed</div>
+                </div>
+                <div class="oa-timeline-step @(isConfirmed ? "oa-active" : (afterConfirmed ? "oa-completed" : ""))">
+                    <div class="oa-timeline-icon">@(afterConfirmed ? "✓" : "2")</div>
+                    <div class="oa-timeline-text">Confirmed</div>
+                </div>
+                <div class="oa-timeline-step @(isPreparing ? "oa-active" : (afterPreparing ? "oa-completed" : ""))">
+                    <div class="oa-timeline-icon">@(afterPreparing ? "✓" : "3")</div>
+                    <div class="oa-timeline-text">Preparing</div>
+                </div>
+                <div class="oa-timeline-step @(isInTransit ? "oa-active" : (afterInTransit ? "oa-completed" : ""))">
+                    <div class="oa-timeline-icon">@(afterInTransit ? "✓" : "4")</div>
+                    <div class="oa-timeline-text">In Transit</div>
+                </div>
+                <div class="oa-timeline-step @((isDelivered || isCompleted) ? "oa-completed" : "")">
+                    <div class="oa-timeline-icon">@((isDelivered || isCompleted) ? "✓" : "5")</div>
+                    <div class="oa-timeline-text">Delivered</div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- LEFT SIDE -->
+    <div class="col-lg-8">
+        <!-- Fulfillment Details -->
+        <div class="card admin-detail-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark mb-3"><i class="ti ti-user text-primary me-2"></i> Fulfillment Details</h5>
+                <div class="row g-3">
+                    <div class="col-md-6 border-end">
+                        <h6 class="text-muted small fw-bold text-uppercase mb-2">Customer Information</h6>
+                        <p class="mb-0 fw-bold text-dark fs-5">@(Model.Customer != null ? Model.Customer.full_name : "Walk-in Buyer")</p>
+                        <p class="mb-1 small text-muted"><i class="ti ti-mail me-1"></i> @Model.Customer?.email</p>
+                        <p class="mb-0 small text-muted"><i class="ti ti-phone me-1"></i> @Model.Customer?.contact_number</p>
+                    </div>
+                    <div class="col-md-6 ps-md-4">
+                        <h6 class="text-muted small fw-bold text-uppercase mb-2">Shipping Information</h6>
+                        <p class="mb-1 text-dark small fw-bold"><i class="ti ti-map-pin text-danger me-1"></i> Delivery Address:</p>
+
+                        @if (!string.IsNullOrEmpty(Model.shipping_address))
+                        {
+                            <p class="mb-3 text-dark small bg-light p-3 rounded-3 border fw-semibold shadow-sm">@Model.shipping_address</p>
+                        }
+                        else
+                        {
+                            <p class="mb-3 text-danger small bg-danger-subtle p-3 rounded-3 border border-danger-subtle fw-bold">
+                                <i class="ti ti-alert-circle me-1"></i> No Shipping Address Provided!
+                            </p>
+                        }
+
+                        <div class="small mt-2">
+                            <span class="text-muted d-block">Logistics Status:</span>
+                            @if (string.IsNullOrEmpty(Model.courier))
+                            {
+                                <span class="text-warning fw-bold"><i class="ti ti-clock me-1"></i> Awaiting Dispatch / Courier Assignment</span>
+                            }
+                            else
+                            {
+                                <span class="text-success fw-bold"><i class="ti ti-truck me-1"></i> Dispatched via @Model.courier</span>
+                                <small class="text-muted d-block mt-1">Tracking #: <strong class="text-primary">@Model.tracking_number</strong></small>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="card admin-detail-card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h5 class="fw-bold text-dark m-0"><i class="ti ti-package text-primary me-2"></i> Order Items</h5>
+            </div>
+            <div class="card-body px-4">
+                <div class="table-responsive">
+                    <table class="table table-borderless align-middle mb-0">
+                        <thead>
+                            <tr class="text-muted border-bottom small text-uppercase">
+                                <th>Product Item</th>
+                                <th class="text-center">QTY</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.OrderItems != null)
+                            {
+                                foreach (var item in Model.OrderItems)
+                                {
+                                    <tr>
+                                        <td style="min-width: 280px;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-light rounded-3 p-1 me-3 border d-flex align-items-center justify-content-center" style="width: 65px; height: 65px;">
+                                                    @if (item.ShoeInventory?.ShoeCatalog != null && !string.IsNullOrEmpty(item.ShoeInventory.ShoeCatalog.image_path))
+                                                    {
+                                                        <img src="@item.ShoeInventory.ShoeCatalog.image_path" class="img-fluid rounded" alt="Shoe Image" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="ti ti-photo text-muted fs-3"></i>
+                                                    }
+                                                </div>
+                                                <div>
+                                                    <span class="text-muted small text-uppercase fw-bold letter-spacing-1">@(item.ShoeInventory?.ShoeCatalog != null ? item.ShoeInventory.ShoeCatalog.brand : "Brand")</span>
+                                                    <h6 class="fw-bold text-dark mb-1 fs-6">@(item.ShoeInventory?.ShoeCatalog != null ? item.ShoeInventory.ShoeCatalog.model_name : "Shoe Model")</h6>
+                                                    <span class="badge bg-secondary text-white small rounded-2 font-monospace">Size: @(item.ShoeInventory != null ? item.ShoeInventory.size.ToString("0.#") : "—")</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center fw-bold text-dark">@item.quantity</td>
+                                        <td class="text-end text-muted">₱@item.item_price.ToString("N0")</td>
+                                        <td class="text-end fw-bold text-success">₱@((item.item_price * item.quantity).ToString("N0"))</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORDER ACTIONS: 4-button layout -->
+        <div class="card admin-detail-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h5 class="fw-bold text-dark m-0"><i class="ti ti-adjustments text-primary me-2"></i> Order Actions</h5>
+                    <span class="oa-current-status-label">Current Status: <span class="badge oa-status-badge oa-status-@sClass">@Model.status</span></span>
+                </div>
+                <p class="text-muted small mb-3">Take action on this order based on its current status.</p>
+
+                <div class="row g-3">
+                    <!-- Confirm -->
+                    <div class="col-md-6 col-6">
+                        <button type="button"
+                                class="oa-action-btn oa-confirm w-100 @(canConfirm ? "" : "oa-disabled")"
+                                @(canConfirm ? $"onclick=confirmOrder({Model.order_id})" : "disabled")>
+                            <i class="ti ti-check oa-action-icon"></i>
+                            <span class="oa-action-title">Confirm Order</span>
+                            <span class="oa-action-sub">Approve & deduct stock</span>
+                        </button>
+                    </div>
+                    <!-- Cancel -->
+                    <div class="col-md-6 col-6">
+                        <button type="button"
+                                class="oa-action-btn oa-cancel w-100 @(canCancel ? "" : "oa-disabled")"
+                                @(canCancel ? "onclick=\"openCancelModal()\"" : "disabled")>
+                            <i class="ti ti-x oa-action-icon"></i>
+                            <span class="oa-action-title">Cancel Order</span>
+                            <span class="oa-action-sub">Cancel this order</span>
+                        </button>
+                    </div>
+                </div>
+
+                @if (isConfirmed || isPreparing || isInTransit)
+                {
+                    var nextStatus = isConfirmed ? "Preparing" : (isPreparing ? "In Transit" : "Delivered");
+                    <form asp-action="ProcessStatus" method="post" class="row g-2 align-items-end mt-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="orderId" value="@Model.order_id" />
+                        <input type="hidden" name="nextStatus" value="@nextStatus" />
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Courier</label>
+                            <input name="courier" value="@Model.courier" maxlength="100" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Tracking number</label>
+                            <input name="trackingNumber" value="@Model.tracking_number" maxlength="100" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">Move to @nextStatus</button>
+                        </div>
+                    </form>
+                }
+
+                @if (canMarkAsPaid)
+                {
+                    <form asp-action="MarkAsPaid" method="post" class="mt-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="orderId" value="@Model.order_id" />
+                        <button type="submit" class="btn btn-success">Mark COD order as paid</button>
+                    </form>
+                }
+
+                <div id="oaFeedback" class="alert mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+    <!-- RIGHT SIDE -->
+    <div class="col-lg-4">
+        <div class="card admin-detail-card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark mb-3">Order Summary</h5>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Subtotal</span>
+                    <span class="fw-semibold">₱@Model.total_amount.ToString("N0")</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Shipping Fee</span>
+                    <span class="fw-semibold">₱0.00</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-0">
+                    <span class="fw-bold text-dark">Total</span>
+                    <span class="fw-bold text-success fs-4">₱@Model.total_amount.ToString("N0")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card admin-detail-card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark mb-3">Payment & Courier</h5>
+                <div class="mb-3">
+                    <label class="text-muted small d-block mb-0 text-uppercase fw-bold">Payment Method</label>
+                    <span class="fw-semibold text-dark">@(string.IsNullOrWhiteSpace(Model.payment_method) ? "Not specified" : Model.payment_method)</span>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small d-block mb-0 text-uppercase fw-bold">Payment Status</label>
+                    @if (Model.payment_status == "Paid")
+                    {
+                        <span class="badge bg-success text-uppercase">Paid</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary text-uppercase">Unpaid</span>
+                    }
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <label class="text-muted small d-block mb-0">Courier</label>
+                    <span class="fw-bold text-dark">@(string.IsNullOrEmpty(Model.courier) ? "—" : Model.courier)</span>
+                </div>
+                <div class="mb-2">
+                    <label class="text-muted small d-block mb-0">Tracking Number</label>
+                    <span class="fw-bold text-primary">@(string.IsNullOrEmpty(Model.tracking_number) ? "—" : Model.tracking_number)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORDER TIMELINE -->
+        <div class="card admin-detail-card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-dark mb-3"><i class="ti ti-clock text-primary me-2"></i> Order Timeline</h5>
+
+                <div class="oa-timeline-entry mb-3">
+                    <span class="oa-timeline-label">Order placed</span>
+                    <span class="oa-timeline-value">@Model.order_date.ToString("MMMM dd, yyyy hh:mm tt")</span>
+                </div>
+
+                <div class="oa-timeline-entry">
+                    <span class="oa-timeline-label">Last updated</span>
+                    <span class="oa-timeline-value">
+                        @(Model.updated_at.HasValue ? Model.updated_at.Value.ToString("MMMM dd, yyyy hh:mm tt") : "—")
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div class="modal fade" id="oaCancelModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Cancel Order #ORD-@Model.order_id.ToString("D4")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label fw-semibold small">Cancellation reason <span class="text-danger">*</span></label>
+                <textarea id="oaCancelReason" class="form-control" rows="4" placeholder="Example: The customer no longer needs the order, or the address is incorrect."></textarea>
+                <div id="oaCancelError" class="text-danger small mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger fw-bold" onclick="submitCancelOrder(@Model.order_id)">
+                    <i class="ti ti-x me-1"></i> Cancel Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/orders-management.js" asp-append-version="true"></script>
+}
+
+@Html.AntiForgeryToken()

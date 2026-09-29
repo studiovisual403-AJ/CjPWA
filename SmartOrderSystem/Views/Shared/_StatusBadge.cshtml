@@ -1,0 +1,3 @@
+@model (string Text, string BadgeClass, string ExtraClasses, string Style)
+
+<span class="badge @Model.BadgeClass @Model.ExtraClasses @(string.IsNullOrWhiteSpace(Model.Style) ? "" : "badge-inline-style")">@Model.Text</span>

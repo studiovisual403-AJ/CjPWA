@@ -1,0 +1,201 @@
+@model SmartOrderSystem.ViewModels.CustomerOrderDetailsViewModel
+
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+
+    ViewData["Title"] = "Order Details";
+
+    bool isCancelled = Model.Status == "Cancelled";
+    bool isConfirmed = Model.Status == "Confirmed";
+    bool isPreparing = Model.Status == "Preparing";
+    bool isInTransit = Model.Status == "In Transit";
+    bool isDelivered = Model.Status == "Delivered" || Model.Status == "Completed";
+    bool canRate = Model.Status == "Delivered";
+
+    bool afterConfirmed = isPreparing || isInTransit || isDelivered;
+    bool afterPreparing = isInTransit || isDelivered;
+    bool afterInTransit = isDelivered;
+
+    string badgeClass = Model.Status switch
+    {
+        "Pending" => "bg-warning text-dark",
+        "Confirmed" => "bg-primary",
+        "Preparing" => "bg-info text-dark",
+        "In Transit" => "bg-purple text-white",
+        "Delivered" => "bg-success",
+        "Completed" => "bg-success",
+        "Cancelled" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="container-fluid p-4">
+
+    <a asp-action="Index" asp-route-tab="@Model.ReturnTab" asp-route-sort="@Model.ReturnSort"
+       class="text-decoration-none text-danger d-inline-flex align-items-center mb-2">
+        <i class="ti ti-arrow-left me-1"></i> Back to Orders
+    </a>
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Order ID</h4>
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-danger">@Model.DisplayOrderId</span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-muted"
+                        onclick="navigator.clipboard.writeText('@Model.DisplayOrderId')" title="Copy Order ID">
+                    <i class="ti ti-copy"></i>
+                </button>
+            </div>
+            <div class="text-muted small">Placed on @Model.OrderDate.ToString("MMMM dd, yyyy 'at' hh:mm tt")</div>
+        </div>
+
+        <div class="text-end">
+            <div class="text-muted small">Total Amount</div>
+            <div class="fw-bold fs-5 text-danger">₱@Model.TotalAmount.ToString("N2")</div>
+            <span class="badge rounded-pill @badgeClass px-3 py-2 mt-1">@Model.Status</span>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            @if (isCancelled)
+            {
+                <div class="d-flex align-items-center gap-2 text-danger fw-bold">
+                    <i class="ti ti-x-circle fs-3"></i> Order Cancelled
+                </div>
+                @if (!string.IsNullOrEmpty(Model.CancellationReason))
+                {
+                    <div class="alert alert-danger border-0 mt-3 mb-0 small">
+                        <strong>Reason:</strong> @Model.CancellationReason
+                    </div>
+                }
+            }
+            else
+            {
+                <h6 class="fw-bold mb-3">Order Status Timeline</h6>
+                <div class="d-flex justify-content-between text-center position-relative">
+
+                    <div class="flex-fill">
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto mb-2" style="width:32px;height:32px;">
+                            <i class="ti ti-check"></i>
+                        </div>
+                        <div class="small fw-semibold">Order Placed</div>
+                        <div class="small text-muted">@Model.OrderDate.ToString("MMM dd, yyyy • hh:mm tt")</div>
+                    </div>
+
+                    <div class="flex-fill">
+                        <div class="rounded-circle @(isConfirmed || afterConfirmed ? "bg-success text-white" : "bg-light text-muted border") d-flex align-items-center justify-content-center mx-auto mb-2" style="width:32px;height:32px;">
+                            @if (afterConfirmed || isConfirmed) { <i class="ti ti-check"></i> } else { <span>2</span> }
+                        </div>
+                        <div class="small fw-semibold">Confirmed</div>
+                    </div>
+
+                    <div class="flex-fill">
+                        <div class="rounded-circle @(afterConfirmed ? "bg-success text-white" : "bg-light text-muted border") d-flex align-items-center justify-content-center mx-auto mb-2" style="width:32px;height:32px;">
+                            @if (afterPreparing) { <i class="ti ti-check"></i> } else { <span>3</span> }
+                        </div>
+                        <div class="small fw-semibold">Preparing</div>
+                    </div>
+
+                    <div class="flex-fill">
+                        <div class="rounded-circle @(afterPreparing ? "bg-success text-white" : "bg-light text-muted border") d-flex align-items-center justify-content-center mx-auto mb-2" style="width:32px;height:32px;">
+                            @if (afterInTransit) { <i class="ti ti-check"></i> } else { <span>4</span> }
+                        </div>
+                        <div class="small fw-semibold">Shipped</div>
+                    </div>
+
+                    <div class="flex-fill">
+                        <div class="rounded-circle @(isDelivered ? "bg-success text-white" : "bg-light text-muted border") d-flex align-items-center justify-content-center mx-auto mb-2" style="width:32px;height:32px;">
+                            @if (isDelivered) { <i class="ti ti-check"></i> } else { <span>5</span> }
+                        </div>
+                        <div class="small fw-semibold">Delivered</div>
+                    </div>
+
+                </div>
+
+                @if (!string.IsNullOrEmpty(Model.Courier) || !string.IsNullOrEmpty(Model.TrackingNumber))
+                {
+                    <hr />
+                    <div class="d-flex gap-4 small text-muted flex-wrap">
+                        <div><strong>Courier:</strong> @(Model.Courier ?? "—")</div>
+                        <div><strong>Tracking #:</strong> @(Model.TrackingNumber ?? "—")</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Order Items -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-bold py-3">Order Items</div>
+        <div class="card-body">
+            @foreach (var item in Model.Items)
+            {
+                <div class="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+                    <img src="@(item.ImagePath ?? "/images/no-image.png")"
+                         class="rounded border" style="width:60px;height:60px;object-fit:contain;" />
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold mb-1">@item.ShoeName</h6>
+                        <div class="text-muted small">@item.Brand • @item.Category</div>
+                        <div class="text-muted small">Size @item.Size.ToString("0.#") • Quantity: @item.Quantity</div>
+                    </div>
+                    <div class="fw-bold">₱@item.LineTotal.ToString("N2")</div>
+                </div>
+
+                @if (canRate)
+                {
+                    <form method="post" action="@Url.Action("Rate", "Shop")" class="order-rating-form mb-3" data-shoe-id="@item.ShoeId">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="shoeId" value="@item.ShoeId" />
+                        <label class="small fw-semibold d-block mb-1">Your rating</label>
+                        <input type="hidden" name="rating" value="@(item.ExistingRating ?? 0)" />
+                        <div class="order-rating-stars" role="radiogroup" aria-label="Rate @item.ShoeName">
+                            @for (var rating = 1; rating <= 5; rating++)
+                            {
+                                <button type="button" class="rating-star border-0 bg-transparent p-0 me-1" data-rating="@rating" aria-label="@rating out of 5">
+                                    <i class="ti @(item.ExistingRating.HasValue && rating <= item.ExistingRating.Value ? "ti-star-filled" : "ti-star") text-warning"></i>
+                                </button>
+                            }
+                        </div>
+                        <span class="small text-muted rating-message"></span>
+                    </form>
+                }
+            }
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.order-rating-form').forEach(function (form) {
+            form.querySelectorAll('.rating-star').forEach(function (star) {
+                star.addEventListener('click', async function () {
+                    const selectedRating = Number(star.dataset.rating);
+                    form.querySelector('input[name="rating"]').value = selectedRating;
+                    form.querySelectorAll('.rating-star').forEach(function (candidate) {
+                        const icon = candidate.querySelector('i');
+                        const isFilled = Number(candidate.dataset.rating) <= selectedRating;
+                        icon.classList.toggle('ti-star-filled', isFilled);
+                        icon.classList.toggle('ti-star', !isFilled);
+                    });
+
+                const message = form.querySelector('.rating-message');
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': form.querySelector('input[name="__RequestVerificationToken"]').value },
+                        body: new URLSearchParams(new FormData(form))
+                    });
+                    const result = await response.json();
+                    if (result.redirectToLogin) {
+                        window.location.href = '/Account/Login';
+                        return;
+                    }
+                    message.textContent = result.message || (result.success ? 'Rating saved.' : 'Unable to save rating.');
+                    message.className = `small ${result.success ? 'text-success' : 'text-danger'} rating-message`;
+                });
+            });
+        });
+    </script>
+}

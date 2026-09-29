@@ -1,0 +1,353 @@
+@model IEnumerable<SmartOrderSystem.Models.Reservation>
+
+@{
+    ViewData["Title"] = "Reservation Management";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    var currentStatus = ViewBag.CurrentStatus as string ?? "All";
+    var currentSearch = ViewBag.CurrentSearch as string ?? "";
+    int pageIndex = ViewBag.PageIndex ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <style>
+        /* MOCKUP CARD STYLES */
+       .mock-summary-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+            transition: .2s ease;
+        }
+
+        .mock-summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(15,23,42,.08);
+        }
+
+        .mock-icon-circle{
+    width:42px;
+    height:42px;
+    border-radius:8px;
+    background:#1e293b;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.mock-icon-circle i{
+    font-size:1.5rem;
+}
+
+
+        /* FILTER BAR */
+        .mock-filter-bar {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+        }
+        /* Individual Icon Colors */
+.icon-pending i{
+    color:#f59e0b;
+}
+
+.icon-approved i{
+    color:#22c55e;
+}
+
+.icon-converted i{
+    color:#3b82f6;
+}
+
+.icon-expired i{
+    color:#ef4444;
+}
+
+        /* RESERVATIONS TABLE */
+        .res-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.res-table thead th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.res-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.85rem;
+}
+.action-col {
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+.btn-primary {
+    background-color: #e74c3c;
+    border-color: #e74c3c;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: #c0392b;
+    border-color: #c0392b;
+    transform: translateY(-1px);
+}
+        .shoe-thumb {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+
+        /* STATUS BADGES FROM MOCKUP */
+        .badge-res-pending { background-color: #fef3c7; color: #d97706; font-weight: 600; }
+        .badge-res-pickup { background-color: #dcfce7; color: #15803d; font-weight: 600; }
+        .badge-res-converted { background-color: #e0f2fe; color: #0369a1; font-weight: 600; }
+        .badge-res-expired { background-color: #fee2e2; color: #b91c1c; font-weight: 600; }
+
+        /* SOLID RED PAGINATION LINK */
+        .custom-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            text-decoration: none;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            background: #fff;
+        }
+        .custom-page-link.active-red {
+            background-color: #dc3545 !important;
+            color: white !important;
+            border-color: #dc3545 !important;
+        }
+        .custom-page-link.disabled-btn {
+            background-color: #f8fafc;
+            color: #94a3b8;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+    </style>
+}
+
+@await Html.PartialAsync("~/Views/Shared/_PageHeader.cshtml", ("Reservation Management", "Manage online customer reservations before they are converted into orders."))
+
+<!-- TOP LIFECYCLE SUMMARY CARDS -->
+<div class="row g-3 mb-4">
+    <!-- Pending Reservations -->
+    <div class="col-md-3">
+        <div class="mock-summary-card p-4 d-flex align-items-center h-100">
+            <div class="mock-icon-circle icon-pending me-3">
+                <i class="ti ti-calendar-time"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-semibold">Pending Reservations</span>
+                <h2 class="fw-bold text-dark mb-0 my-1">@(ViewBag.PendingCount ?? 0)</h2>
+                <small class="text-muted fs-8">Awaiting approval</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Reservations -->
+<div class="col-md-3">
+    <div class="mock-summary-card p-4 d-flex align-items-center h-100">
+        <div class="mock-icon-circle icon-approved me-3">
+            <i class="ti ti-circle-check"></i>
+        </div>
+        <div>
+            <span class="text-muted d-block small fw-semibold">Approved Reservations</span>
+            <h2 class="fw-bold text-dark mb-0 my-1">@(ViewBag.ApprovedCount ?? 0)</h2>
+            <small class="text-muted fs-8">Approved by administrator</small>
+        </div>
+    </div>
+</div>
+
+    <!-- Converted to Orders -->
+    <div class="col-md-3">
+        <div class="mock-summary-card p-4 d-flex align-items-center h-100">
+            <div class="mock-icon-circle icon-converted me-3">
+                <i class="ti ti-shopping-cart-check"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-semibold">Converted to Orders</span>
+                <h2 class="fw-bold text-dark mb-0 my-1">@(ViewBag.ConvertedCount ?? 0)</h2>
+                <small class="text-muted fs-8">Successfully converted</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expired Reservations -->
+    <div class="col-md-3">
+        <div class="mock-summary-card p-4 d-flex align-items-center h-100">
+            <div class="mock-icon-circle icon-expired me-3">
+                <i class="ti ti-calendar-off"></i>
+            </div>
+            <div>
+                <span class="text-muted d-block small fw-semibold">Expired Reservations</span>
+                <h2 class="fw-bold text-dark mb-0 my-1">@(ViewBag.ExpiredCount ?? 0)</h2>
+                <small class="text-muted fs-8">Reservation lapsed</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTERS SECTION -->
+<div class="mock-filter-bar p-3 mb-4 shadow-sm">
+    <form method="get" asp-action="Index" class="row g-3 align-items-center">
+        <div class="col-md-5 position-relative">
+            <i class="ti ti-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" name="searchString" value="@currentSearch" class="form-control ps-5 py-2 border-light-subtle rounded-3" placeholder="Search reservation ID, customer, product..." />
+        </div>
+        
+        <div class="col-md-3">
+            <label class="form-label small fw-bold text-muted mb-1">Status</label>
+            <select name="statusFilter" class="form-select border-light-subtle rounded-3 py-2" onchange="this.form.submit()">
+    <option value="All" selected="@(currentStatus == "All")">All Statuses</option>
+    <option value="Pending" selected="@(currentStatus == "Pending")">Pending</option>
+    <option value="Approved" selected="@(currentStatus == "Approved")">Approved</option>
+    <option value="Converted" selected="@(currentStatus == "Converted")">Converted to Order</option>
+    <option value="Cancelled" selected="@(currentStatus == "Cancelled")">Cancelled</option>
+    <option value="Expired" selected="@(currentStatus == "Expired")">Expired</option>
+</select>
+        </div>
+
+        <div class="col-md-3">
+           <label class="form-label small fw-bold text-muted mb-1">Reservation Date</label>
+            <input type="date" name="reservationDate" value="@(ViewBag.CurrentReservationDate ?? "")" class="form-control border-light-subtle rounded-3 py-2" />
+        </div>
+
+        <div class="col-md-1 d-grid align-self-end">
+            <button type="submit" class="btn btn-dark py-2 rounded-3"><i class="ti ti-filter me-1"></i>Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- LIST PANEL -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-white border-bottom p-3">
+        <h5 class="fw-bold text-dark mb-0">Reservations List</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="res-table align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-4">RESERVATION ID</th>
+                        <th>CUSTOMER</th>
+                        <th>PRODUCT</th>
+                        <th class="text-center">QTY</th>
+                        <th>RESERVATION DATE</th>
+                        <th>STATUS</th>
+                        <th class="text-center action-col reservation-action-cell">ACTION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var res in Model)
+                        {
+                            var badgeClass = res.status?.ToLower() switch
+                            {
+                                "pending" => "badge-res-pending",
+                                "approved" => "badge-res-pickup",
+                                "converted" => "badge-res-converted",
+                                "cancelled" => "badge-res-expired",
+                                "expired" => "badge-res-expired",
+                                _ => "bg-secondary text-white"
+                            };
+
+                            <tr>
+                                <td class="ps-4 fw-bold text-primary">#RES-@res.reservation_id.ToString("D4")</td>
+                                <td class="fw-semibold text-dark">@(res.Customer != null ? res.Customer.full_name : "Regular Customer")</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+    <img src="@(string.IsNullOrEmpty(res.ShoeInventory?.ShoeCatalog?.image_path)
+        ? "/images/no-image.png"
+        : res.ShoeInventory.ShoeCatalog.image_path)"
+         class="shoe-thumb"
+         alt="shoe" />
+
+    <div>
+        <span class="fw-semibold text-dark d-block">
+            @(res.ShoeInventory?.ShoeCatalog?.model_name ?? "Shoe Item")
+        </span>
+
+        <small class="text-muted">
+            @(res.ShoeInventory?.ShoeCatalog?.brand ?? "")
+        </small>
+    </div>
+</div>
+                                </td>
+                                <td class="text-center fw-medium">@res.quantity</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-1 text-dark small">
+                                        <i class="ti ti-calendar text-muted"></i>
+                                        <span>@res.reservation_date.ToString("MMM dd, yyyy hh:mm tt")</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @await Html.PartialAsync("~/Views/Shared/_StatusBadge.cshtml", (res.status ?? "UNKNOWN", badgeClass, "rounded-2 px-2 py-1 text-uppercase", "font-size: 0.7rem;"))
+                                </td>
+                                    <td class="text-center action-col">
+    <a asp-action="Details" asp-route-id="@res.reservation_id" class="btn btn-sm btn-outline-primary rounded-2 px-3 py-1">
+        <i class="ti ti-eye me-1"></i> View Details
+    </a>
+</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+    <i class="ti ti-calendar-off fs-2 d-block mb-2"></i>
+    <span class="fw-semibold">No reservation records found.</span>
+</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+<div class="catalog-footer">
+        <span class="catalog-count">
+            Showing @(Model?.Count() ?? 0) of @(ViewBag.TotalCount ?? 0) reservations
+        </span>
+
+        <div class="pagination">
+            <a class="page-btn @(pageIndex <= 1 ? "disabled" : "")"
+               asp-action="Index" asp-route-page="@(pageIndex - 1)" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus" asp-route-reservationDate="@(ViewBag.CurrentReservationDate ?? "")">
+                <i class="ti ti-chevron-left" aria-hidden="true"></i>
+                Previous
+            </a>
+
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <a class="page-num @(i == pageIndex ? "active" : "")"
+                   asp-action="Index" asp-route-page="@i" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus" asp-route-reservationDate="@(ViewBag.CurrentReservationDate ?? "")">@i</a>
+            }
+
+            <a class="page-btn @(pageIndex >= totalPages ? "disabled" : "")"
+               asp-action="Index" asp-route-page="@(pageIndex + 1)" asp-route-searchString="@currentSearch" asp-route-statusFilter="@currentStatus" asp-route-reservationDate="@(ViewBag.CurrentReservationDate ?? "")">
+                Next
+                <i class="ti ti-chevron-right" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>

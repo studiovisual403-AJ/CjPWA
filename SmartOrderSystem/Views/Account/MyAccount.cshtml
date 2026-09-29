@@ -1,0 +1,140 @@
+@model SmartOrderSystem.ViewModels.MyAccountViewModel
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    ViewData["Title"] = "My Account";
+}
+<div class="ma-breadcrumb">
+    <a asp-controller="Home" asp-action="Index">Home</a> / <span>My Account</span>
+</div>
+
+<h1 class="ma-page-title">My Account</h1>
+
+<div class="ma-layout">
+    <!-- Sidebar -->
+    <aside class="ma-sidebar">
+        <div class="ma-sidebar-profile">
+            <div class="ma-avatar ma-avatar-placeholder">
+                <i class="ti ti-user"></i>
+            </div>
+            <div class="ma-sidebar-name">@Model.FullName</div>
+            <div class="ma-sidebar-email">@Model.Email</div>
+        </div>
+
+        <nav class="ma-sidebar-nav">
+            <a asp-controller="Account" asp-action="MyAccount" class="ma-nav-link active">
+                <i class="ti ti-user"></i> My Profile
+            </a>
+            <a asp-controller="Order" asp-action="Index" class="ma-nav-link">
+                <i class="ti ti-shopping-bag"></i> My Orders
+            </a>
+            <a asp-controller="Reservation" asp-action="Index" class="ma-nav-link">
+                <i class="ti ti-calendar"></i> My Reservations
+            </a>
+            <a asp-controller="Account" asp-action="MyAddresses" class="ma-nav-link">
+                <i class="ti ti-map-pin"></i> My Addresses
+            </a>
+            <hr class="ma-sidebar-divider" />
+            <a asp-controller="Account" asp-action="Logout" class="ma-nav-link ma-logout">
+                <i class="ti ti-logout"></i> Logout
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="ma-main">
+        <div class="ma-welcome-banner">
+            <div class="ma-welcome-icon"><i class="ti ti-hand"></i></div>
+            <div>
+                <div class="ma-welcome-title">Welcome back, @Model.FullName.Split(' ')[0]! 👋</div>
+                <div class="ma-welcome-sub">Here's what's happening with your account today.</div>
+            </div>
+        </div>
+
+        <div class="ma-stats-grid">
+            <div class="ma-stat-card">
+                <div class="ma-stat-icon"><i class="ti ti-shopping-bag"></i></div>
+                <div class="ma-stat-label">Orders</div>
+                <div class="ma-stat-value">@Model.TotalOrders</div>
+                <a asp-controller="Order" asp-action="Index" class="ma-stat-link">View all orders <i class="ti ti-arrow-right"></i></a>
+            </div>
+            <div class="ma-stat-card">
+                <div class="ma-stat-icon"><i class="ti ti-calendar"></i></div>
+                <div class="ma-stat-label">Reservations</div>
+                <div class="ma-stat-value">@Model.TotalReservations</div>
+                <a asp-controller="Reservation" asp-action="Index" class="ma-stat-link">View all reservations <i class="ti ti-arrow-right"></i></a>
+            </div>
+            <div class="ma-stat-card">
+                <div class="ma-stat-icon"><i class="ti ti-map-pin"></i></div>
+                <div class="ma-stat-label">Saved Addresses</div>
+                <div class="ma-stat-value">@Model.SavedAddressesCount</div>
+                <a asp-controller="Account" asp-action="MyAddresses" class="ma-stat-link">Manage addresses <i class="ti ti-arrow-right"></i></a>
+            </div>
+        </div>
+
+        <div class="ma-content-grid">
+            <div class="ma-recent-orders">
+                <div class="ma-section-header">
+                    <h2>Recent Orders</h2>
+                    <a asp-controller="Order" asp-action="Index">View All Orders <i class="ti ti-arrow-right"></i></a>
+                </div>
+                <div class="table-responsive ma-orders-table-wrap">
+                    <table class="ma-orders-table">
+                        <thead>
+                            <tr>
+                                <th>ORDER</th>
+                                <th>DATE</th>
+                                <th>ITEMS</th>
+                                <th>TOTAL</th>
+                                <th>STATUS</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in Model.RecentOrders)
+                            {
+                                <tr>
+                                    <td>@order.OrderNumber</td>
+                                    <td>@order.OrderDate.ToString("MMM d, yyyy")</td>
+                                    <td>@order.ItemsCount item@(order.ItemsCount > 1 ? "s" : "")</td>
+                                    <td>₱@order.Total.ToString("N0")</td>
+                                    <td>
+                                        <span class="ma-status ma-status-@order.Status.ToLower()">@order.Status</span>
+                                    </td>
+                                    <td><a asp-controller="Order" asp-action="Index" class="ma-view-link">View Order</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="ma-profile-info">
+                <div class="ma-section-header">
+                    <h2>Profile Information</h2>
+                </div>
+                <div class="ma-info-row">
+                    <i class="ti ti-user"></i>
+                    <div>
+                        <div class="ma-info-label">Full Name</div>
+                        <div class="ma-info-value">@Model.FullName</div>
+                    </div>
+                </div>
+                <div class="ma-info-row">
+                    <i class="ti ti-mail"></i>
+                    <div>
+                        <div class="ma-info-label">Email Address</div>
+                        <div class="ma-info-value">@Model.Email</div>
+                    </div>
+                </div>
+                <div class="ma-info-row">
+                    <i class="ti ti-phone"></i>
+                    <div>
+                        <div class="ma-info-label">Phone Number</div>
+                        <div class="ma-info-value">@Model.ContactNumber</div>
+                    </div>
+                </div>
+                <a asp-controller="Account" asp-action="EditProfile" class="ma-edit-btn"><i class="ti ti-edit"></i> Edit Profile</a>
+            </div>
+        </div>
+    </div>
+</div>

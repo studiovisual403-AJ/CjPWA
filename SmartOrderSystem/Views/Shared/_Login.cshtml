@@ -1,0 +1,149 @@
+@model SmartOrderSystem.Models.LoginView
+@{
+    Layout = null;
+    var showRegister = ViewBag.ShowRegister ?? true;
+    var controllerName = ViewBag.ControllerName ?? "Account";
+    var title = ViewBag.Title ?? "Welcome Back";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@title - CJ SHOES</title>
+    <link rel="stylesheet" href="~/css/admin.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .validation-summary, .field-validation-error, .alert { font-size: 12px; }
+        .validation-summary:empty { display: none; }
+        .field-validation-error { display: block; margin-top: 4px; color: #b91c1c; }
+        .alert { margin-bottom: 16px; padding: 10px 12px; border-radius: 8px; }
+        .alert-success { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+        .alert-error, .validation-summary-errors { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
+    </style>
+</head>
+<body class="admin-login-body">
+    <div class="split-container">
+        <aside class="left-panel">
+            <div class="branding-top">
+                <div class="icon-box-large"><i class="fa-solid fa-lock icon-large"></i></div>
+                <h2><span>Design and Development of a Progressive</span><strong>Web-Based Retail Management System</strong><span>for CJ Shoes</span></h2>
+                <p class="description">Optimize and scale your operations with our professional retail solution, designed for efficiency and growth.</p>
+                <span class="powered-by">**Powered by CJ Shoes Retail Tech**</span>
+            </div>
+        </aside>
+        <main class="right-panel">
+            <div class="login-card">
+                <div class="icon-box-small"><i class="fa-solid fa-lock icon-small"></i></div>
+                
+                @* LOGIN FORM *@
+                <div id="login-view">
+                    <h2>@title</h2>
+                    <p class="subtitle">Sign in to access your account</p>
+                    
+                    @if (TempData["Success"] is string successMessage) { <div class="alert alert-success">@successMessage</div> }
+                    @if (ViewBag.Error is string errorMessage) { <div class="alert alert-error">@errorMessage</div> }
+                    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                    
+                    <form asp-action="Login" asp-controller="@controllerName" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="form-group">
+                            <label for="emailInput">Email Address</label>
+                            <input asp-for="Email" id="emailInput" class="form-control" placeholder="Enter your email" autocomplete="off"/>
+                            <span asp-validation-for="Email" class="field-validation-error"></span>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <div class="password-field">
+                                <input asp-for="Password" type="password" id="login-password" class="form-control" placeholder="Enter your password" />
+                                <button type="button" class="password-toggle" onclick="togglePassword('login-password', this)"><i class="fa-solid fa-eye"></i></button>
+                            </div>
+                            <span asp-validation-for="Password" class="field-validation-error"></span>
+                            @if(showRegister) 
+                            {
+                                <a asp-action="ForgotPassword" asp-controller="@controllerName" class="forgot-link">Forgot Password?</a>
+                            }
+                        </div>
+                        <button type="submit" class="btn-login">Sign In</button>
+                    </form>
+
+                    @if(showRegister)
+                    {
+                        <p class="footer-note">Don't have an account? <a href="#" onclick="toggleForm()">Register</a></p>
+                    }
+                    else
+                    {
+                        <p class="footer-note">Admin access only.</p>
+                    }
+                </div>
+
+                @* REGISTER FORM*@
+                @if(showRegister)
+                {
+                    <div id="register-view" style="display:none;">
+                        <h2>Create Account</h2>
+                        <p class="subtitle">Join us today</p>
+                        
+                        <form asp-action="Register" asp-controller="Account" method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input name="FullName" class="form-control" placeholder="Enter your name" required/>
+                            </div>
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <input name="Email" type="email" class="form-control" placeholder="Enter your email" required/>
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Number</label>
+                                <input name="ContactNumber" type="text" class="form-control" placeholder="Enter your contact number" required/>
+                            </div>
+                            <div class="form-group">
+                                <label>Password</label>
+                                <div class="password-field">
+                                    <input name="Password" type="password" id="reg-password" class="form-control" placeholder="Enter your password" required/>
+                                    <button type="button" class="password-toggle" onclick="togglePassword('reg-password', this)"><i class="fa-solid fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-login">Create Account</button>
+                        </form>
+                        <p class="footer-note">Already have an account? <a href="#" onclick="toggleForm()">Sign In</a></p>
+                    </div>
+                }
+
+                <p class="footer-terms">By signing in, you agree to our Terms of Service</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector("i");
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                input.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+
+        function toggleForm() {
+            const loginView = document.getElementById('login-view');
+            const registerView = document.getElementById('register-view');
+            if (loginView.style.display === 'none') {
+                loginView.style.display = 'block';
+                registerView.style.display = 'none';
+            } else {
+                loginView.style.display = 'none';
+                registerView.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

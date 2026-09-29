@@ -1,0 +1,121 @@
+@model List<SmartOrderSystem.Models.ProductCardViewModel>
+@{
+    ViewData["Title"] = "Home";
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+}
+
+<!-- HERO SECTION -->
+<section class="shop-hero">
+    <div class="shop-container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <span class="hero-eyebrow">WELCOME TO CJ SHOES</span>
+                <h1 class="hero-title">Step Up Your Game</h1>
+                <p class="hero-subtitle">
+                    Discover premium footwear from top brands.<br />
+                    Reserve, buy, and experience quality like never before.
+                </p>
+                <div class="d-flex gap-3 mt-4">
+                    <a asp-controller="Shop" asp-action="Products" asp-route-sort="newest" class="btn btn-shop-primary px-4 py-2">Shop New</a>
+                    <a href="#category-section" class="btn btn-shop-outline px-4 py-2">View Collections</a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center text-lg-end">
+                <img src="~/images/Jordan.png" alt="Featured Shoe" class="hero-shoe-img" />
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SHOP BY CATEGORY -->
+<section class="shop-section" id="category-section">
+    <div class="shop-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Shop by Category</h5>
+        </div>
+        <div class="d-flex gap-3 category-pills">
+            <a href="#" class="category-pill active"><i class="ti ti-list"></i> All</a>
+            <a href="#" class="category-pill"><i class="ti ti-run"></i> Running</a>
+            <a href="#" class="category-pill"><i class="ti ti-basket"></i> Basketball</a>
+            <a href="#" class="category-pill"><i class="ti ti-shirt"></i> Lifestyle</a>
+            <a href="#" class="category-pill"><i class="ti ti-shoe"></i> Casual</a>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURED PRODUCTS -->
+<section class="shop-section" id="featured">
+    <div class="shop-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Featured Products</h5>
+            <a asp-controller="Shop" asp-action="Products" class="small text-danger text-decoration-none">View All Products <i class="ti ti-chevron-right"></i></a>
+        </div>
+
+        <div class="row g-4">
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var product in Model)
+                {
+                    string badgeClass = product.TotalStock == 0 ? "only-left"
+                                        : product.TotalStock <= 3 ? "low-stock"
+                                        : "in-stock";
+
+                    string badgeText = product.TotalStock == 0 ? "Out of Stock"
+                                        : product.TotalStock == 1 ? "Only 1 left!"
+                                        : $"In Stock ({product.TotalStock})";
+
+                    <div class="col-md-3">
+                        <div class="product-card">
+                            <div class="product-thumb-wrap">
+                                <span class="stock-badge @badgeClass">@badgeText</span>
+                                <img src="@(string.IsNullOrEmpty(product.ImagePath) ? "/images/no-image.png" : product.ImagePath)"
+                                     class="product-thumb" alt="@product.ModelName" />
+                            </div>
+                            <div class="product-info">
+    <h6 class="product-name">@product.ModelName</h6>
+    <span class="product-cat">@product.Brand - @product.Category</span>
+
+    <div class="d-flex align-items-center gap-1 mt-1">
+        @if (product.RatingCount > 0)
+        {
+            <span class="rating-stars">
+                @for (int i = 1; i <= 5; i++)
+                {
+                    <i class="ti @(i <= Math.Round(product.AvgRating) ? "ti-star-filled" : "ti-star") text-warning"></i>
+                }
+            </span>
+            <span class="small text-muted">@product.AvgRating.ToString("0.0") (@product.RatingCount)</span>
+        }
+        else
+        {
+            <span class="small text-muted">No ratings yet</span>
+        }
+        @if (product.SoldCount > 0)
+        {
+            <span class="small text-muted">· @product.SoldCount Sold</span>
+        }
+    </div>
+
+    <div class="product-price">
+        ₱@product.Price.ToString("N2")
+        @if (product.DiscountPercentage.HasValue)
+        {
+            <small class="text-muted text-decoration-line-through">₱@product.OriginalPrice.ToString("N2")</small>
+        }
+    </div>
+    <div class="d-flex gap-2 mt-2">
+        <a href="/Shop/Details/@product.ShoeId" class="btn btn-shop-outline-sm flex-fill">View Details</a>
+        <a href="/Shop/Details/@product.ShoeId" class="btn btn-shop-primary-sm flex-fill"><i class="ti ti-shopping-cart-plus me-1"></i>Add to Cart</a>
+    </div>
+</div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted">There are currently no products available in this category.</p>
+            }
+        </div>
+    </div>
+</section>

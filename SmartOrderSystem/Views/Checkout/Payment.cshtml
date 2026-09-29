@@ -1,0 +1,61 @@
+@model SmartOrderSystem.ViewModels.CheckoutPaymentViewModel
+
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    
+    ViewData["Title"] = "Checkout - Payment";
+}
+
+<div class="container-fluid p-4">
+    <h2 class="fw-bold mb-4">Checkout</h2>
+
+    <div class="d-flex align-items-center mb-4 checkout-stepper">
+        <div class="step completed"><span class="step-circle">✓</span> Delivery</div>
+        <div class="step-line"></div>
+        <div class="step active"><span class="step-circle">2</span> Payment</div>
+        <div class="step-line"></div>
+        <div class="step"><span class="step-circle">3</span> Confirmation</div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-1"><i class="ti ti-credit-card me-2"></i>Payment Method</h5>
+                    <p class="text-muted small mb-4">Choose your preferred payment method.</p>
+
+                    <form asp-action="Confirmation" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="border border-danger rounded-3 p-3 mb-3 d-flex align-items-center gap-3">
+                            <input type="radio" name="PaymentMethod" value="Cash on Delivery" checked class="form-check-input mt-0" />
+                            <div class="flex-grow-1">
+                                <div class="fw-bold"><i class="ti ti-truck me-1"></i> Cash on Delivery (COD)</div>
+                                <div class="text-muted small">Pay in cash when your order is delivered.</div>
+                            </div>
+                            <span class="badge bg-success-subtle text-success">COD</span>
+                        </div>
+
+                        <div class="alert alert-light border small">
+                            <strong><i class="ti ti-info-circle me-1"></i> Important Note</strong><br />
+                            Please prepare the exact amount of your total payment. Our courier will collect the payment upon delivery.
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="Delivery" class="btn btn-outline-secondary px-4">
+                                <i class="ti ti-arrow-left me-1"></i> Back to Delivery
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4">
+                                Place Order <i class="ti ti-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            @await Html.PartialAsync("_OrderSummary", Model.OrderSummary)
+        </div>
+    </div>
+</div>

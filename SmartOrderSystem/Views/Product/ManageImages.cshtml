@@ -1,0 +1,360 @@
+@using SmartOrderSystem.Models
+@model ShoeCatalog
+
+@{
+    ViewData["Title"] = "Product Images";
+    var coverImage = Model.Images?.FirstOrDefault(i => i.IsCover);
+}
+
+<div class="mi-container">
+    
+    @if (TempData["Error"] != null)
+    {
+        <div class="mi-alert-error" style="background:#fee2e2; color:#b91c1c; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; font-weight:500;">
+            <i class="ti ti-alert-circle"></i> @TempData["Error"]
+        </div>
+    }
+
+    <!-- Header -->
+    <div class="mi-header">
+        <div>
+            <div class="mi-breadcrumb">
+                <a asp-action="Index">Product Catalog</a>
+                <span>›</span>
+                <span>@Model.brand @Model.model_name</span>
+                <span>›</span>
+                <span class="mi-current">Images</span>
+            </div>
+            <h2 class="mi-title">Product Images</h2>
+            <a asp-action="Index" class="mi-back-link">
+                <i class="ti ti-arrow-left"></i> Back to Product Catalog
+            </a>
+        </div>
+        <div class="mi-btn-group">
+            <button type="button" class="mi-btn mi-btn-danger-solid" onclick="miOpenUploadModal()">
+                <i class="ti ti-plus"></i> Upload Images
+            </button>
+        </div>
+    </div>
+
+    <!-- Product summary card -->
+    <div class="mi-product-card">
+        <div class="mi-product-thumb">
+            @if (coverImage != null)
+            {
+                <img src="@coverImage.FilePath" alt="@Model.model_name" />
+            }
+            else
+            {
+                <i class="ti ti-shoe"></i>
+            }
+        </div>
+        <div class="mi-product-info">
+            <h3>@Model.brand @Model.model_name</h3>
+            <div class="mi-product-meta">
+                <span><strong>Brand:</strong> @Model.brand</span>
+                <span><strong>Category:</strong> @Model.category</span>
+                <span><strong>Color:</strong> @Model.color</span>
+                <span><strong>Base Price:</strong> ₱@Model.default_price.ToString("N2")</span>
+                <span class="mi-badge-status @(Model.status == "Active" ? "mi-badge-active" : "mi-badge-inactive")">
+                    @Model.status
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Images Card Grid Section -->
+    <div class="mi-table-card">
+        <div class="mi-table-header">
+            <h4>Uploaded Images (<span id="miImageCount">@(Model.Images?.Count() ?? 0)</span>)</h4>
+        </div>
+
+       <!-- Grid layout para sa mga image cards -->
+        <div class="mi-image-grid-container" id="miImageList" data-shoe-id="@Model.shoe_id">
+            @if (Model.Images != null && Model.Images.Any())
+            {
+                int index = 1;
+                foreach (var img in Model.Images.OrderBy(i => i.DisplayOrder))
+                {
+                    <div class="mi-image-card-item @(img.IsCover ? "is-cover-card" : "")" data-image-id="@img.Id">
+                        
+                        <div class="mi-card-top-row">
+                            <span class="mi-drag-handle" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span>
+                            @if (img.IsCover)
+                            {
+                                <span class="mi-badge-cover">COVER IMAGE</span>
+                            }
+                            else
+                            {
+                                <span></span>
+                            }
+                        </div>
+
+                        <div class="mi-img-thumb-card">
+                            <img src="@img.FilePath" alt="@img.FileName" />
+                        </div>
+
+                        <div class="mi-card-details">
+                            <div class="mi-order-cell">
+                                <span class="mi-order-num"><strong>@(index++).</strong></span>
+                                <div class="mi-filename-cell" style="width: 100%;">
+                                    <input type="text" 
+                                           class="mi-filename-input" 
+                                           value="@img.FileName" 
+                                           data-image-id="@img.Id" 
+                                           onblur="saveFileName(@img.Id, this.value)" readonly />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mi-card-actions">
+                            @if (img.IsCover)
+                            {
+                                <div class="mi-cover-indicator">
+                                    <i class="ti ti-circle-check-filled" style="color: #10b981;"></i> Cover Image
+                                </div>
+                            }
+                            else
+                            {
+                                <label class="mi-set-cover-label">
+                                    <input type="radio" name="coverRadio" class="mi-set-cover-btn" 
+                                           data-image-id="@img.Id" data-shoe-id="@Model.shoe_id" />
+                                    <span>Set as Cover</span>
+                                </label>
+                            }
+                             <input type="file"
+                                id="replace-@img.Id"
+                                class="mi-replace-input"
+                                data-image-id="@img.Id"
+                                accept=".jpg,.jpeg,.png,.webp,.jfif"hidden />
+                            
+                            <div class="mi-secondary-actions">
+                                <button type="button"
+                                    class="mi-btn-action-outline replace-btn"
+                                    data-image-id="@img.Id">
+                                    <i class="ti ti-replace"></i>
+                                    Replace
+                                </button>
+
+                                <button type="button"
+                                    class="mi-btn-action-outline mi-btn-danger-text mi-delete-btn"
+                                    data-image-id="@img.Id"
+                                    data-shoe-id="@Model.shoe_id">
+                                    <i class="ti ti-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                }
+            }
+        </div>
+        <div class="mi-tip" style="margin-top: 20px;">
+            <i class="ti ti-bulb"></i>
+            Tip: The first image marked as cover image will be used as the product thumbnail in the catalog.
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="mi-modal-overlay" id="miUploadModal" style="display: none;">
+    <div class="mi-modal">
+        <div class="mi-modal-header">
+            <h4>Upload Images</h4>
+            <button type="button" class="mi-modal-close" onclick="miCloseUploadModal()">
+                <i class="ti ti-x"></i>
+            </button>
+        </div>
+        
+        <!-- Modal Form with Unique IDs -->
+        <form asp-action="UploadImages" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="shoeId" value="@Model.shoe_id" />
+            
+            <div class="mi-modal-body" style="padding: 24px;">
+                <div class="drag-drop-zone mi-dropzone" id="miDropzoneModal" style="margin: 0; cursor: pointer;">
+                    
+                    <!-- Image Preview -->
+                    <img id="mi-image-preview" src="#" alt="Preview" style="display: none; width: 220px; height: 140px; object-fit: contain; border-radius: 8px; margin-bottom: 10px;" />
+
+                    <!-- Upload Placeholder Elements -->
+                    <div id="mi-upload-placeholder">
+                        <i class="ti ti-cloud-upload mi-upload-main-icon" style="font-size: 32px; color: #dc2626;"></i>
+                        <p class="mi-upload-message" style="margin: 10px 0 5px 0;">Drag & drop image here, or <span class="mi-browse-link">browse</span></p>
+                        <span class="mi-upload-hint">JPG, PNG, WEBP &bull; Max 5MB</span>
+                    </div>
+
+                    <!-- File Name Display -->
+                    <div id="mi-file-name-display" style="display: none; font-size: 13px; font-weight: 500; color: #1e293b; margin-bottom: 10px;"></div>
+
+                    <!-- Action Buttons (Change & Remove) -->
+                    <div id="mi-image-actions" style="display: none; justify-content: center; gap: 8px; margin-top: 5px;">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="miChangeImage(event)">
+                            <i class="ti ti-photo"></i> Change Image
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="miRemoveImage(event)">
+                            <i class="ti ti-trash"></i> Remove
+                        </button>
+                    </div>
+                    
+                    <input type="file" name="imageFiles" id="miFileInputModal" accept="image/jpeg,image/jfif,image/png,image/webp" multiple style="display:none;" />
+                    <div id="miFilePreviewModal"></div>
+                </div>
+            </div>
+
+            <div class="mi-modal-footer">
+                <button type="button" class="mi-btn mi-btn-secondary" onclick="miCloseUploadModal()">Cancel</button>
+                <button type="submit" class="mi-btn mi-btn-danger-solid">Upload</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script src="~/js/product-image-upload.js" asp-append-version="true"></script>
+
+    <script>
+        function miOpenUploadModal() {
+            const modal = document.getElementById('miUploadModal');
+            if (modal) modal.style.display = 'flex';
+        }
+        function miCloseUploadModal() {
+            const modal = document.getElementById('miUploadModal');
+            if (modal) modal.style.display = 'none';
+        }
+    </script>
+
+    <style>
+        .mi-container { background-color: #f8f9fa; min-height: 100vh; font-family: inherit; }
+        .mi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+        .mi-title { font-size: 24px; font-weight: 700; color: #0f172a; margin: 4px 0 8px 0; }
+        .mi-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; }
+        .mi-breadcrumb a { color: #475569; text-decoration: none; }
+        .mi-current { color: #0f172a; font-weight: 500; }
+        .mi-back-link { display: inline-flex; align-items: center; gap: 6px; color: #dc2626; text-decoration: none; font-size: 13px; font-weight: 500; }
+        .mi-back-link:hover { text-decoration: underline; }
+        
+        .mi-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; border: 1px solid transparent; }
+        .mi-btn-danger-solid { background: #1e293b; color: white; border: none; }
+        .mi-btn-secondary { background: #ffffff; color: #334155; border-color: #cbd5e1; }
+        .mi-btn-secondary:hover { background: #f1f5f9; }
+
+        .mi-product-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; display: flex; gap: 20px; align-items: center; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .mi-product-thumb { width: 70px; height: 48px; background: #ffffff; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #f1f5f9; overflow: hidden; flex-shrink: 0; }
+        .mi-product-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .mi-product-thumb i { font-size: 36px; color: #94a3b8; }
+        .mi-product-info h3 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; }
+        .mi-product-meta { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #475569; }
+        
+        .mi-badge-status { padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .mi-badge-active { background: #dcfce7; color: #16a34a; }
+        .mi-badge-inactive { background: #fee2e2; color: #dc2626; }
+
+        .mi-table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .mi-table-header { margin-bottom: 20px; }
+        .mi-table-header h4 { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
+        .mi-hint { font-size: 13px; color: #64748b; }
+
+        .mi-image-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .mi-image-card-item {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+        }
+
+        .mi-image-card-item.is-cover-card { border-color: #cbd5e1; }
+        .mi-card-top-row { display: flex; justify-content: space-between; align-items: center; height: 22px; }
+        .mi-badge-cover { background-color: #dc2626; color: white; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px; }
+        .mi-drag-handle { cursor: grab; color: #94a3b8; font-size: 16px; }
+
+        .mi-img-thumb-card {
+            width: 100%;
+            height: 140px;
+            background: #ffffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+        }
+        .mi-img-thumb-card img { width: 100%; height: 100%; object-fit: cover; }
+
+        .mi-card-details { display: flex; flex-direction: column; gap: 4px; }
+        .mi-order-cell { display: flex; align-items: center; gap: 6px; }
+        .mi-order-num { font-size: 13px; color: #334155; }
+        .mi-filename-input { width: 100%; border: 1px solid transparent; background: transparent; font-size: 13px; color: #1e293b; font-weight: 500; padding: 2px 4px; border-radius: 4px;  pointer-events: none; 
+        user-select: none; 
+        -webkit-user-select: none; }
+        .mi-filename-input:hover, .mi-filename-input:focus { border-color: #cbd5e1; background: #fff; outline: none; }
+
+        .mi-card-actions { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+        .mi-cover-indicator { font-size: 13px; color: #1e293b; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        
+        .mi-set-cover-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #334155;
+            cursor: pointer;
+            font-weight: 400;
+        }
+        .mi-set-cover-label input[type="radio"] { cursor: pointer; accent-color: #dc2626; }
+
+        .mi-secondary-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mi-btn-action-outline { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; color: #334155; font-weight: 500; }
+        .mi-btn-action-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+        .mi-btn-danger-text { color: #dc2626; border-color: #fca5a5; }
+        .mi-btn-danger-text:hover { background: #fef2f2; }
+
+        /* Inline Dropzone gaya ng Mockup */
+        .mi-inline-upload-box { margin-top: 20px; }
+        .mi-dropzone-inline { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 20px 24px; background: #ffffff; display: flex; align-items: center; justify-content: space-between; transition: border-color 0.2s; }
+        .mi-dropzone-inline:hover { border-color: #dc2626; }
+        .mi-upload-content-flex { display: flex; align-items: center; gap: 16px; }
+        .mi-upload-main-icon { font-size: 32px; color: #dc2626; }
+        .mi-upload-text-group { display: flex; flex-direction: column; gap: 2px; }
+        .mi-upload-message { font-size: 14px; color: #1e293b; font-weight: 500; margin: 0; }
+        .mi-browse-link { color: #dc2626; cursor: pointer; font-weight: 600; }
+        .mi-browse-link:hover { text-decoration: underline; }
+        .mi-upload-hint { font-size: 12px; color: #64748b; }
+        
+        .mi-btn-choose-files {
+            background-color: #dc2626;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: inline-block;
+            transition: background 0.2s;
+        }
+        .mi-btn-choose-files:hover { background-color: #b91c1c; }
+
+        /* Modal Overlay Styles */
+        .mi-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .mi-modal { background: white; border-radius: 12px; width: 500px; max-width: 90%; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .mi-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
+        .mi-modal-header h4 { margin: 0; font-size: 16px; font-weight: 700; color: #0f172a; }
+        .mi-modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b; }
+        .mi-dropzone { padding: 30px; text-align: center; border: 2px dashed #cbd5e1; margin: 24px; border-radius: 8px; background: #fafafa; }
+        .mi-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; background: #fdfdfd; }
+    </style>
+}

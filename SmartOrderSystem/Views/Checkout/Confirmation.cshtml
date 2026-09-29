@@ -1,0 +1,87 @@
+@model SmartOrderSystem.ViewModels.CheckoutConfirmationViewModel
+
+@{
+    Layout = "~/Views/Shared/_ShopLayout.cshtml";
+    
+    ViewData["Title"] = "Order Confirmed";
+}
+
+<div class="container-fluid p-4">
+    <h2 class="fw-bold mb-4">Checkout</h2>
+
+    <div class="d-flex align-items-center mb-4 checkout-stepper">
+        <div class="step completed"><span class="step-circle">✓</span> Delivery</div>
+        <div class="step-line"></div>
+        <div class="step completed"><span class="step-circle">✓</span> Payment</div>
+        <div class="step-line"></div>
+        <div class="step active"><span class="step-circle">3</span> Confirmation</div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 text-center">
+                    <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3" style="width:70px;height:70px;">
+                        <i class="ti ti-check fs-1"></i>
+                    </div>
+                    <h4 class="fw-bold">Order Confirmed!</h4>
+                    <p class="text-muted">
+                        Thank you for your order. Your order has been successfully placed.
+                        You will receive an SMS/Email confirmation with your order details.
+                    </p>
+
+                    <div class="row g-3 text-start mt-4 border-top pt-4">
+                        <div class="col-md-4">
+                            <div class="text-muted small"><i class="ti ti-calendar me-1"></i> Order Date</div>
+                            <div class="fw-bold">@Model.OrderDate.ToString("MMM dd, yyyy - hh:mm tt")</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small"><i class="ti ti-truck me-1"></i> Payment Method</div>
+                            <div class="fw-bold">@Model.PaymentMethod</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-muted small"><i class="ti ti-receipt me-1"></i> Total Amount</div>
+                            <div class="fw-bold text-danger">₱@Model.TotalAmount.ToString("N2")</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border mt-4 text-start small">
+                        <strong><i class="ti ti-info-circle me-1"></i> What happens next?</strong><br />
+                        We will process your order and notify you once it has been shipped.
+                        You can track your order status from the Orders page.
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <a asp-controller="Shop" asp-action="Index" class="btn btn-outline-secondary px-4">
+                            <i class="ti ti-shopping-bag me-1"></i> Continue Shopping
+                        </a>
+                        <a asp-controller="Order" asp-action="Index" class="btn btn-danger px-4">
+                            <i class="ti ti-list-details me-1"></i> View My Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Order Summary</h5>
+                    <div class="d-flex gap-3 mb-3">
+                        <img src="@(Model.ImagePath ?? "/images/no-image.png")" class="rounded border" style="width:70px;height:70px;object-fit:contain;" />
+                        <div>
+                            <h6 class="fw-bold mb-1">@Model.ShoeName</h6>
+                            <div class="text-muted small">@Model.Brand</div>
+                            <div class="text-muted small">Size @Model.Size.ToString("0.#") • Qty: @Model.Quantity</div>
+                        </div>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Total</span>
+                        <span class="fw-bold text-danger fs-5">₱@Model.TotalAmount.ToString("N2")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
