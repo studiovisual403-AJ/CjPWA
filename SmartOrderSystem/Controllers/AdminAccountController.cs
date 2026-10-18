@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SmartOrderSystem.Data;
 using SmartOrderSystem.Models;
 using BCrypt.Net;
@@ -23,6 +24,7 @@ namespace SmartOrderSystem.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("account-login")]
         public IActionResult Login(LoginView model)
         {
             if (!ModelState.IsValid)

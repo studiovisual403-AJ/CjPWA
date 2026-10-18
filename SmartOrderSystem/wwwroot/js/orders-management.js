@@ -1,117 +1,127 @@
-function getCsrfToken() {
-    return document.querySelector('input[name="__RequestVerificationToken"]')?.value
-        || document.querySelector('meta[name="csrf-token"]')?.content
-        || '';
-}
+(function () {
+    'use strict';
 
-function showOrderFeedback(message, isSuccess) {
-    const box = document.getElementById('oaFeedback');
-    if (!box) {
-        return;
+    const config = document.getElementById('oaConfig');
+    const urls = {
+        confirm: config.dataset.confirmUrl,
+        cancel: config.dataset.cancelUrl,
+        paid: config.dataset.paidUrl,
+        notify: config.dataset.notifyUrl
+    };
+
+    function getToken() {
+        const el = document.querySelector('input[name="__RequestVerificationToken"]');
+        return el ? el.value : '';
     }
 
-    box.className = `alert mt-3 ${isSuccess ? 'alert-success' : 'alert-danger'}`;
-    box.textContent = message;
-    box.classList.remove('d-none');
-}
+    // ===== TOAST =====
+    window.showToast = function (message, type) {
+        type = type || 'success';
+        const icons = { success: 'ti-circle-check', error: 'ti-alert-circle', info: 'ti-info-circle' };
+        const container = document.getElementById('oaToastContainer');
 
-async function confirmOrder(orderId) {
-    if (!confirm('Are you sure you want to confirm this order? Stock will be deducted.')) return;
+        const toast = document.createElement('div');
+        toast.className = 'oa-toast oa-toast-' + type;
 
-    try {
-        const res = await fetch('/OrdersManagement/ConfirmOrder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `orderId=${orderId}&__RequestVerificationToken=${encodeURIComponent(getCsrfToken())}`
-        });
-        const data = await res.json();
-        showOrderFeedback(data.message, data.success);
-        if (data.success) setTimeout(() => location.reload(), 900);
-    } catch (e) {
-        showOrderFeedback('An error occurred while confirming the order.', false);
-    }
-}
+        const icon = document.createElement('i');
+        icon.className = 'ti ' + (icons[type] || icons.info);
 
-function openCancelModal() {
-    const cancelReason = document.getElementById('oaCancelReason');
-    const cancelError = document.getElementById('oaCancelError');
-    const cancelModal = document.getElementById('oaCancelModal');
+        const text = document.createElement('span');
+        text.textContent = message;
 
-    if (!cancelReason || !cancelError || !cancelModal) {
-        return;
-    }
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'oa-toast-close';
+        close.innerHTML = '&times;';
 
-    cancelReason.value = '';
-    cancelError.classList.add('d-none');
-    new bootstrap.Modal(cancelModal).show();
-}
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        toast.appendChild(close);
+        container.appendChild(toast);
 
-async function submitCancelOrder(orderId) {
-    const reason = document.getElementById('oaCancelReason')?.value.trim() || '';
-    const errBox = document.getElementById('oaCancelError');
+        requestAnimationFrame(function () { toast.classList.add('oa-toast-show'); });
 
-    if (!reason) {
-        if (errBox) {
-            errBox.textContent = 'A cancellation reason is required before submitting.';
-            errBox.classList.remove('d-none');
+        function dismiss() {
+            toast.classList.remove('oa-toast-show');
+            setTimeout(function () { toast.remove(); }, 300);
         }
-        return;
-    }
+        close.onclick = dismiss;
+        setTimeout(dismiss, 4000);
+    };
 
-    try {
-        const res = await fetch('/OrdersManagement/CancelOrder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `orderId=${orderId}&reason=${encodeURIComponent(reason)}&__RequestVerificationToken=${encodeURIComponent(getCsrfToken())}`
-        });
-        const data = await res.json();
-        if (data.success) {
-            location.reload();
-        } else if (errBox) {
-            errBox.textContent = data.message;
-            errBox.classList.remove('d-none');
+    // ===== GENERIC POST (para sa mga JSON actions) =====
+    async function postAction(url, data, btn, reloadOnSuccess) {
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': getToken()
+                },
+                body: new URLSearchParams(data).toString()
+            });
+
+            if (!res.ok) throw new Error('Request failed: ' + res.status);
+
+            const result = await res.json();
+            showToast(result.message, result.success ? 'success' : 'error');
+
+            if (result.success && reloadOnSuccess) {
+                setTimeout(function () { location.reload(); }, 1300);
+                return result; // naka-disable pa rin ang button hanggang mag-reload
+            }
+
+            if (btn) btn.disabled = false;
+            return result;
+        } catch (e) {
+            showToast('Something went wrong. Please try again.', 'error');
+            if (btn) btn.disabled = false;
         }
-    } catch (e) {
-        if (errBox) {
-            errBox.textContent = 'An error occurred while cancelling the order.';
-            errBox.classList.remove('d-none');
+    }
+
+    // ===== CONFIRM =====
+    window.confirmOrder = function (orderId, btn) {
+        if (!confirm('Confirm this order? Stock will be deducted from inventory.')) return;
+        postAction(urls.confirm, { orderId: orderId }, btn, true);
+    };
+
+    // ===== CANCEL (modal) =====
+    window.openCancelModal = function () {
+        document.getElementById('oaCancelReason').value = '';
+        document.getElementById('oaCancelError').classList.add('d-none');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('oaCancelModal')).show();
+    };
+
+    window.submitCancelOrder = async function (orderId) {
+        const reasonEl = document.getElementById('oaCancelReason');
+        const errorEl = document.getElementById('oaCancelError');
+        const submitBtn = document.getElementById('oaCancelSubmit');
+        const reason = reasonEl.value.trim();
+
+        if (!reason) {
+            errorEl.textContent = 'Please enter a cancellation reason.';
+            errorEl.classList.remove('d-none');
+            return;
         }
-    }
-}
+        errorEl.classList.add('d-none');
 
-async function notifyCustomer(orderId) {
-    try {
-        const res = await fetch('/OrdersManagement/NotifyCustomer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `orderId=${orderId}&__RequestVerificationToken=${encodeURIComponent(getCsrfToken())}`
-        });
-        const data = await res.json();
-        showOrderFeedback(data.message, data.success);
-    } catch (e) {
-        showOrderFeedback('An error occurred while sending the notification.', false);
-    }
-}
+        const result = await postAction(urls.cancel, { orderId: orderId, reason: reason }, submitBtn, true);
 
-async function markAsPaid(orderId) {
-    if (!confirm('Are you sure you want to mark this order as paid and completed?')) return;
+        if (result && result.success) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('oaCancelModal')).hide();
+        }
+    };
 
-    try {
-        const res = await fetch('/OrdersManagement/MarkAsPaid', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `orderId=${orderId}&__RequestVerificationToken=${encodeURIComponent(getCsrfToken())}`
-        });
-        const data = await res.json();
-        showOrderFeedback(data.message, data.success);
-        if (data.success) setTimeout(() => location.reload(), 900);
-    } catch (e) {
-        showOrderFeedback('An error occurred while marking the order as paid.', false);
-    }
-}
+    // ===== MARK AS PAID =====
+    window.markAsPaid = function (orderId, btn) {
+        if (!confirm('Mark this COD order as paid? The order will be set to Completed.')) return;
+        postAction(urls.paid, { orderId: orderId }, btn, true);
+    };
 
-window.confirmOrder = confirmOrder;
-window.openCancelModal = openCancelModal;
-window.submitCancelOrder = submitCancelOrder;
-window.notifyCustomer = notifyCustomer;
-window.markAsPaid = markAsPaid;
+    // ===== NOTIFY CUSTOMER =====
+    window.notifyCustomer = function (orderId, btn) {
+        postAction(urls.notify, { orderId: orderId }, btn, false);
+    };
+})();

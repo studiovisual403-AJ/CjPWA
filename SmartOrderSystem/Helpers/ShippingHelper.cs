@@ -7,5 +7,11 @@ namespace SmartOrderSystem.Helpers
 
         public static decimal CalculateShipping(decimal subtotal)
             => subtotal >= FreeShippingThreshold ? 0m : ShippingFee;
+
+        public static (decimal ShippingFee, decimal Total) CalculateTotals(decimal discountedSubtotal)
+        {
+            var shippingFee = CalculateShipping(discountedSubtotal);
+            return (shippingFee, discountedSubtotal + shippingFee);
+        }
     }
 }

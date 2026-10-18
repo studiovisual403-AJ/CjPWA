@@ -32,11 +32,19 @@ namespace SmartOrderSystem.Data
                 .HasForeignKey(order => order.address_id)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Order>()
+                .HasIndex(order => order.checkout_request_key)
+                .IsUnique();
+
             modelBuilder.Entity<ShoeInventory>()
                 .HasOne(inventory => inventory.ShoeCatalog)
                 .WithMany()
                 .HasForeignKey(inventory => inventory.shoe_id)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ShoeInventory>()
+                .HasIndex(inventory => new { inventory.shoe_id, inventory.size })
+                .IsUnique();
 
             modelBuilder.Entity<ProductImage>()
                 .HasOne(image => image.ShoeCatalog)

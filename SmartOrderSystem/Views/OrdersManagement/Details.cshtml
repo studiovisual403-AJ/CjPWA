@@ -17,18 +17,17 @@
 
     bool canConfirm = isPending;
     bool canCancel = isPending || isConfirmed || isPreparing;
-    bool canPrint = !isPending;
     bool canNotify = !isPending && !isCancelled;
     bool canMarkAsPaid = isDelivered;
 }
 
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show mx-1 mt-2">
-        @TempData["ErrorMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
+<!-- TOAST CONTAINER + URL CONFIG -->
+<div class="oa-toast-container" id="oaToastContainer"></div>
+<div id="oaConfig" class="d-none"
+     data-confirm-url="@Url.Action("ConfirmOrder", "OrdersManagement")"
+     data-cancel-url="@Url.Action("CancelOrder", "OrdersManagement")"
+     data-paid-url="@Url.Action("MarkAsPaid", "OrdersManagement")"
+     data-notify-url="@Url.Action("NotifyCustomer", "OrdersManagement")"></div>
 
 <div class="oa-page-header mb-4">
     <a asp-action="Index" class="btn btn-sm btn-link text-decoration-none text-muted p-0 mb-2 d-inline-flex align-items-center">
@@ -192,7 +191,7 @@
             </div>
         </div>
 
-        <!-- ORDER ACTIONS: 4-button layout -->
+        <!-- ORDER ACTIONS -->
         <div class="card admin-detail-card border-0 shadow-sm mb-4">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -203,23 +202,36 @@
 
                 <div class="row g-3">
                     <!-- Confirm -->
-                    <div class="col-md-6 col-6">
+                    <div class="col-md-4 col-12">
                         <button type="button"
                                 class="oa-action-btn oa-confirm w-100 @(canConfirm ? "" : "oa-disabled")"
-                                @(canConfirm ? $"onclick=confirmOrder({Model.order_id})" : "disabled")>
+                                disabled="@(!canConfirm)"
+                                onclick="confirmOrder(@Model.order_id, this)">
                             <i class="ti ti-check oa-action-icon"></i>
                             <span class="oa-action-title">Confirm Order</span>
                             <span class="oa-action-sub">Approve & deduct stock</span>
                         </button>
                     </div>
                     <!-- Cancel -->
-                    <div class="col-md-6 col-6">
+                    <div class="col-md-4 col-6">
                         <button type="button"
                                 class="oa-action-btn oa-cancel w-100 @(canCancel ? "" : "oa-disabled")"
-                                @(canCancel ? "onclick=\"openCancelModal()\"" : "disabled")>
+                                disabled="@(!canCancel)"
+                                onclick="openCancelModal()">
                             <i class="ti ti-x oa-action-icon"></i>
                             <span class="oa-action-title">Cancel Order</span>
                             <span class="oa-action-sub">Cancel this order</span>
+                        </button>
+                    </div>
+                    <!-- Notify -->
+                    <div class="col-md-4 col-6">
+                        <button type="button"
+                                class="oa-action-btn oa-notify w-100 @(canNotify ? "" : "oa-disabled")"
+                                disabled="@(!canNotify)"
+                                onclick="notifyCustomer(@Model.order_id, this)">
+                            <i class="ti ti-bell oa-action-icon"></i>
+                            <span class="oa-action-title">Notify Customer</span>
+                            <span class="oa-action-sub">Send status update</span>
                         </button>
                     </div>
                 </div>
@@ -247,17 +259,16 @@
 
                 @if (canMarkAsPaid)
                 {
-                    <form asp-action="MarkAsPaid" method="post" class="mt-3">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="orderId" value="@Model.order_id" />
-                        <button type="submit" class="btn btn-success">Mark COD order as paid</button>
-                    </form>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-success" onclick="markAsPaid(@Model.order_id, this)">
+                            <i class="ti ti-cash me-1"></i> Mark COD order as paid
+                        </button>
+                    </div>
                 }
-
-                <div id="oaFeedback" class="alert mt-3 d-none"></div>
             </div>
         </div>
     </div>
+
     <!-- RIGHT SIDE -->
     <div class="col-lg-4">
         <div class="card admin-detail-card border-0 shadow-sm mb-4">
@@ -344,8 +355,8 @@
                 <div id="oaCancelError" class="text-danger small mt-2 d-none"></div>
             </div>
             <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger fw-bold" onclick="submitCancelOrder(@Model.order_id)">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger fw-bold" id="oaCancelSubmit" onclick="submitCancelOrder(@Model.order_id)">
                     <i class="ti ti-x me-1"></i> Cancel Order
                 </button>
             </div>
@@ -353,8 +364,25 @@
     </div>
 </div>
 
+@Html.AntiForgeryToken()
+
 @section Scripts {
     <script src="~/js/orders-management.js" asp-append-version="true"></script>
+    <script>
+        // Basahin ang TempData galing sa redirect (ProcessStatus)
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (TempData["Success"] != null)
+            {
+                <text>showToast(@Json.Serialize(TempData["Success"]?.ToString()), 'success');</text>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <text>showToast(@Json.Serialize(TempData["Error"]?.ToString()), 'error');</text>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <text>showToast(@Json.Serialize(TempData["ErrorMessage"]?.ToString()), 'error');</text>
+            }
+        });
+    </script>
 }
-
-@Html.AntiForgeryToken()

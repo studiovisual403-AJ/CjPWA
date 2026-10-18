@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartOrderSystem.Data;
 using SmartOrderSystem.ViewModels;
+using SmartOrderSystem.Helpers;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -30,6 +31,8 @@ namespace SmartOrderSystem.Controllers
         {
             return previous == 0 ? 0 : ((double)(current - previous) / previous) * 100;
         }
+
+        private static string Peso(decimal value) => value.ToString("₱#,##0.00", System.Globalization.CultureInfo.InvariantCulture);
 
         [HttpGet]
         public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate, string? brand, string? category, string? status, int page = 1)
@@ -77,7 +80,7 @@ namespace SmartOrderSystem.Controllers
                 page.Content().Column(column =>
                 {
                     column.Item().Text($"Period: {report.DateStart:MMM dd, yyyy} to {report.DateEnd:MMM dd, yyyy}");
-                    column.Item().Text($"Product revenue: {report.TotalSales:C2}");
+                    column.Item().Text($"Product revenue: {Peso(report.TotalSales)}");
                     column.Item().Text($"Completed orders: {report.CompletedOrders}");
                     column.Item().Text($"Products sold: {report.TotalProductsSold}");
                     column.Item().PaddingTop(12).Table(table =>
@@ -104,7 +107,7 @@ namespace SmartOrderSystem.Controllers
                             table.Cell().Text(transaction.CustomerName);
                             table.Cell().Text(transaction.ProductName);
                             table.Cell().Text(transaction.Qty.ToString());
-                            table.Cell().Text(transaction.Amount.ToString("C2"));
+                            table.Cell().Text(Peso(transaction.Amount));
                         }
                     });
                 });
@@ -152,6 +155,9 @@ namespace SmartOrderSystem.Controllers
                     ShoeId = oi.ShoeInventory.ShoeCatalog.shoe_id
                 })
                 .ToListAsync();
+
+            var abcAnalysis = ReportAnalytics.AnalyzeAbc(completedItems.Select(item =>
+                new ProductRevenueInput(item.ShoeId, item.ProductName, item.quantity, item.item_price)));
 
             decimal totalSales = completedItems.Sum(x => x.quantity * x.item_price);
             int completedOrders = completedItems.Select(x => x.order_id).Distinct().Count();
@@ -254,23 +260,57 @@ namespace SmartOrderSystem.Controllers
                 .OrderByDescending(s => s.Count)
                 .ToList();
 
-            var monthlyTrend = new List<MonthlyTrendItem>();
             var trendMonthAnchor = new DateTime(endDate.Year, endDate.Month, 1);
-            for (int i = 5; i >= 0; i--)
+            var smaStart = trendMonthAnchor.AddMonths(-(5 + ReportAnalytics.SmaWindow - 1));
+            var smaEndExclusive = trendMonthAnchor.AddMonths(1);
+            IQueryable<Models.OrderItem> smaQuery = _context.OrderItems
+                .Where(oi => oi.Order!.status == (status ?? "Completed")
+                    && oi.Order.order_date >= smaStart
+                    && oi.Order.order_date < smaEndExclusive);
+            if (brand != null)
+                smaQuery = smaQuery.Where(oi => oi.ShoeInventory!.ShoeCatalog!.brand == brand);
+            if (category != null)
+                smaQuery = smaQuery.Where(oi => oi.ShoeInventory!.ShoeCatalog!.category == category);
+
+            var monthlyRevenueRows = await smaQuery
+                .GroupBy(oi => new { oi.Order!.order_date.Year, oi.Order.order_date.Month })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    Revenue = group.Sum(item => item.quantity * item.item_price)
+                })
+                .ToListAsync();
+            var monthlyRevenueByPeriod = monthlyRevenueRows.ToDictionary(
+                row => new DateTime(row.Year, row.Month, 1),
+                row => row.Revenue);
+            var monthlyRevenue = Enumerable.Range(0, 6 + ReportAnalytics.SmaWindow - 1)
+                .Select(index =>
+                {
+                    var month = smaStart.AddMonths(index);
+                    return new MonthlyRevenue(
+                        month,
+                        monthlyRevenueByPeriod.TryGetValue(month, out var revenue) ? revenue : 0m);
+                })
+                .ToList();
+            var completeMonthlyRevenue = monthlyRevenue
+                .Where(month => month.Month.AddMonths(1) <= DateTime.Today)
+                .ToList();
+            var smaAnalysis = ReportAnalytics.CalculateSma(completeMonthlyRevenue);
+
+            var monthlyTrend = new List<MonthlyTrendItem>();
+            for (int i = 0; i < 6; i++)
             {
-                var monthStart = trendMonthAnchor.AddMonths(-i);
-                var monthEnd = monthStart.AddMonths(1);
-
-                IQueryable<Models.OrderItem> monthQuery = _context.OrderItems
-                    .Where(oi => oi.Order!.status == (status ?? "Completed")
-                        && oi.Order.order_date >= monthStart && oi.Order.order_date < monthEnd);
-                if (brand != null)
-                    monthQuery = monthQuery.Where(oi => oi.ShoeInventory!.ShoeCatalog!.brand == brand);
-                if (category != null)
-                    monthQuery = monthQuery.Where(oi => oi.ShoeInventory!.ShoeCatalog!.category == category);
-
-                decimal monthAmount = await monthQuery.SumAsync(oi => (decimal?)(oi.quantity * oi.item_price)) ?? 0;
-                monthlyTrend.Add(new MonthlyTrendItem { Month = monthStart.ToString("MMM"), Amount = monthAmount });
+                var monthIndex = i + ReportAnalytics.SmaWindow - 1;
+                var month = monthlyRevenue[monthIndex];
+                monthlyTrend.Add(new MonthlyTrendItem
+                {
+                    Month = month.Month.ToString("MMM"),
+                    Amount = month.Revenue,
+                    MovingAverage = monthIndex < smaAnalysis.Points.Count
+                        ? smaAnalysis.Points[monthIndex].MovingAverage
+                        : null
+                });
             }
 
             IQueryable<Models.OrderItem> txQuery = _context.OrderItems
@@ -345,6 +385,24 @@ namespace SmartOrderSystem.Controllers
                 BestSellingProductUnits = bestProduct?.UnitsSold ?? 0,
 
                 MonthlySalesTrend = monthlyTrend,
+                AbcProducts = abcAnalysis.Products.Select(product => new AbcProductItem
+                {
+                    ProductName = product.ProductName,
+                    Revenue = product.Revenue,
+                    Share = product.Share,
+                    CumulativeShare = product.CumulativeShare,
+                    Classification = product.Classification
+                }).ToList(),
+                AbcClassSummaries = abcAnalysis.ClassSummaries.Select(summary => new AbcClassSummaryItem
+                {
+                    ClassName = summary.ClassName,
+                    ProductCount = summary.ProductCount,
+                    RevenueShare = summary.RevenueShare
+                }).ToList(),
+                NextMonthForecast = smaAnalysis.NextMonthForecast,
+                NextMonthForecastLabel = completeMonthlyRevenue.Count == 0
+                    ? null
+                    : completeMonthlyRevenue[^1].Month.AddMonths(1).ToString("MMM yyyy"),
                 BrandSales = brandSales,
                 CategorySales = categorySales,
                 OrderStatusDistribution = orderStatusDistribution,

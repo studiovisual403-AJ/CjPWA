@@ -34,6 +34,10 @@ namespace SmartOrderSystem.ViewModels
         public int BestSellingProductUnits { get; set; }
 
         public List<MonthlyTrendItem> MonthlySalesTrend { get; set; } = new();
+        public List<AbcProductItem> AbcProducts { get; set; } = new();
+        public List<AbcClassSummaryItem> AbcClassSummaries { get; set; } = new();
+        public decimal? NextMonthForecast { get; set; }
+        public string? NextMonthForecastLabel { get; set; }
         public List<BrandSalesItem> BrandSales { get; set; } = new();
         public List<CategorySalesItem> CategorySales { get; set; } = new();
         public List<OrderStatusItem> OrderStatusDistribution { get; set; } = new();
@@ -51,6 +55,23 @@ namespace SmartOrderSystem.ViewModels
     {
         public string Month { get; set; } = string.Empty;
         public decimal Amount { get; set; }
+        public decimal? MovingAverage { get; set; }
+    }
+
+    public class AbcProductItem
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public decimal Revenue { get; set; }
+        public decimal Share { get; set; }
+        public decimal CumulativeShare { get; set; }
+        public string Classification { get; set; } = string.Empty;
+    }
+
+    public class AbcClassSummaryItem
+    {
+        public string ClassName { get; set; } = string.Empty;
+        public int ProductCount { get; set; }
+        public decimal RevenueShare { get; set; }
     }
 
     public class BrandSalesItem

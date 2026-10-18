@@ -17,6 +17,8 @@ namespace SmartOrderSystem.ViewModels
         [Phone(ErrorMessage = "Enter a valid phone number.")]
         public string ContactNumber { get; set; } = string.Empty;
 
+        public bool ReceivePromotions { get; set; }
+
         public string? IsVerified { get; set; } // pwede mong palitan pag may verified column ka na sa Customer
     }
 }

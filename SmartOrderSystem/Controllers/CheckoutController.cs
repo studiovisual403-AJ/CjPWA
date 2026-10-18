@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using SmartOrderSystem.Data;
 using SmartOrderSystem.Helpers;
 using SmartOrderSystem.Models;
@@ -74,14 +75,15 @@ namespace SmartOrderSystem.Controllers
             var reservation = await _context.Reservations
                 .Include(r => r.ShoeInventory)
                     .ThenInclude(si => si!.ShoeCatalog)
+                        .ThenInclude(catalog => catalog!.Promotions)
                 .FirstOrDefaultAsync(r => r.reservation_id == reservationId);
 
             var catalog = reservation?.ShoeInventory?.ShoeCatalog;
             if (reservation == null || catalog == null)
                 return null;
 
-            var subtotal = catalog.default_price * reservation.quantity;
-            var shippingFee = ShippingHelper.CalculateShipping(subtotal);
+            var pricing = PromotionHelper.CalculatePrice(catalog, reservation.quantity);
+            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
 
             return new CheckoutOrderSummaryViewModel
             {
@@ -90,10 +92,10 @@ namespace SmartOrderSystem.Controllers
                 ImagePath = catalog.image_path,
                 Size = reservation.ShoeInventory!.size,
                 Quantity = reservation.quantity,
-                UnitPrice = catalog.default_price,
-                Subtotal = subtotal,
-                ShippingFee = shippingFee,
-                Total = subtotal + shippingFee
+                UnitPrice = pricing.UnitPrice,
+                Subtotal = pricing.Subtotal,
+                ShippingFee = totals.ShippingFee,
+                Total = totals.Total
             };
         }
 
@@ -101,14 +103,15 @@ namespace SmartOrderSystem.Controllers
         {
             var inventory = await _context.ShoeInventories
                 .Include(i => i.ShoeCatalog)
+                    .ThenInclude(catalog => catalog!.Promotions)
                 .FirstOrDefaultAsync(i => i.inventory_id == inventoryId);
 
             var catalog = inventory?.ShoeCatalog;
             if (inventory == null || catalog == null || quantity <= 0)
                 return null;
 
-            var subtotal = catalog.default_price * quantity;
-            var shippingFee = ShippingHelper.CalculateShipping(subtotal);
+            var pricing = PromotionHelper.CalculatePrice(catalog, quantity);
+            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
 
             return new CheckoutOrderSummaryViewModel
             {
@@ -117,10 +120,10 @@ namespace SmartOrderSystem.Controllers
                 ImagePath = catalog.image_path,
                 Size = inventory.size,
                 Quantity = quantity,
-                UnitPrice = catalog.default_price,
-                Subtotal = subtotal,
-                ShippingFee = shippingFee,
-                Total = subtotal + shippingFee
+                UnitPrice = pricing.UnitPrice,
+                Subtotal = pricing.Subtotal,
+                ShippingFee = totals.ShippingFee,
+                Total = totals.Total
             };
         }
 
@@ -128,6 +131,7 @@ namespace SmartOrderSystem.Controllers
         {
             var cartItems = await _context.CartItems
                 .Include(c => c.Shoe)
+                    .ThenInclude(shoe => shoe.Promotions)
                 .Where(c => c.CustomerId == customerId && cartItemIds.Contains(c.CartItemId))
                 .ToListAsync();
 
@@ -137,6 +141,7 @@ namespace SmartOrderSystem.Controllers
             var summary = new CheckoutOrderSummaryViewModel();
             foreach (var item in cartItems)
             {
+                var pricing = PromotionHelper.CalculatePrice(item.Shoe, item.Quantity);
                 summary.Items.Add(new CheckoutCartItemViewModel
                 {
                     ShoeName = item.Shoe.model_name,
@@ -145,13 +150,14 @@ namespace SmartOrderSystem.Controllers
                     Size = item.Size,
                     Color = item.Color,
                     Quantity = item.Quantity,
-                    UnitPrice = PromotionHelper.GetEffectivePrice(item.Shoe.default_price, PromotionHelper.GetCurrentPromotion(item.Shoe))
+                    UnitPrice = pricing.UnitPrice
                 });
+                summary.Subtotal += pricing.Subtotal;
             }
 
-            summary.Subtotal = summary.Items.Sum(i => i.LineTotal);
-            summary.ShippingFee = ShippingHelper.CalculateShipping(summary.Subtotal);
-            summary.Total = summary.Subtotal + summary.ShippingFee;
+            var totals = ShippingHelper.CalculateTotals(summary.Subtotal);
+            summary.ShippingFee = totals.ShippingFee;
+            summary.Total = totals.Total;
             return summary;
         }
 
@@ -352,8 +358,12 @@ namespace SmartOrderSystem.Controllers
             var vm = new CheckoutPaymentViewModel
             {
                 PaymentMethod = state.PaymentMethod ?? "Cash on Delivery",
+                CheckoutRequestKey = state.CheckoutRequestKey ?? Guid.NewGuid(),
                 OrderSummary = summary
             };
+
+            state.CheckoutRequestKey = vm.CheckoutRequestKey;
+            SaveState(state);
 
             return View(vm);
         }
@@ -362,7 +372,7 @@ namespace SmartOrderSystem.Controllers
         // operation must never run from a safe GET request (prefetch/navigation/link).
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Confirmation(string PaymentMethod)
+        public async Task<IActionResult> Confirmation(string PaymentMethod, Guid CheckoutRequestKey)
         {
             var customerId = await GetCurrentCustomerIdAsync();
             if (customerId == null)
@@ -375,13 +385,46 @@ namespace SmartOrderSystem.Controllers
                 return RedirectToAction(nameof(Delivery));
             }
 
+            if (!string.Equals(PaymentMethod, "Cash on Delivery", StringComparison.Ordinal))
+            {
+                TempData["Error"] = "Please select a valid payment method.";
+                return RedirectToAction(nameof(Payment));
+            }
+
             state.PaymentMethod = string.IsNullOrWhiteSpace(PaymentMethod) ? "Cash on Delivery" : PaymentMethod;
+            if (CheckoutRequestKey == Guid.Empty)
+                CheckoutRequestKey = state.CheckoutRequestKey ?? Guid.NewGuid();
+            state.CheckoutRequestKey = CheckoutRequestKey;
             state.PaymentCompleted = true;
             SaveState(state);
 
             // Idempotency guard - iwas duplicate order kapag nag-refresh
             if (state.CreatedOrderId.HasValue)
                 return RedirectToAction(nameof(Confirmation), new { orderId = state.CreatedOrderId.Value });
+
+            async Task<IActionResult?> SaveOrderOrRedirectAsync(Order newOrder)
+            {
+                _context.Orders.Add(newOrder);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    return null;
+                }
+                catch (DbUpdateException ex)
+                    when (ex.InnerException is MySqlException mysqlException
+                        && mysqlException.Number == 1062
+                        && mysqlException.Message.Contains("IX_orders_checkout_request_key", StringComparison.OrdinalIgnoreCase))
+                {
+                    var existingOrder = await _context.Orders
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(o => o.checkout_request_key == CheckoutRequestKey.ToString()
+                            && o.customer_id == customerId.Value);
+                    if (existingOrder == null)
+                        throw;
+
+                    return RedirectToAction(nameof(Confirmation), new { orderId = existingOrder.order_id });
+                }
+            }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
@@ -391,6 +434,7 @@ namespace SmartOrderSystem.Controllers
             {
                 var cartItems = await _context.CartItems
                     .Include(c => c.Shoe)
+                        .ThenInclude(shoe => shoe.Promotions)
                     .Where(c => c.CustomerId == customerId && state.CartItemIds.Contains(c.CartItemId))
                     .ToListAsync();
 
@@ -429,22 +473,26 @@ namespace SmartOrderSystem.Controllers
                 }
 
                 var address = await CreateAddressAsync(state, customerId.Value);
-                var subtotal = cartItems.Sum(i => PromotionHelper.GetEffectivePrice(i.Shoe.default_price, PromotionHelper.GetCurrentPromotion(i.Shoe)) * i.Quantity);
-                var shippingFee = ShippingHelper.CalculateShipping(subtotal);
+                var pricingByCartItemId = cartItems.ToDictionary(
+                    item => item.CartItemId,
+                    item => PromotionHelper.CalculatePrice(item.Shoe, item.Quantity));
+                var subtotal = pricingByCartItemId.Values.Sum(pricing => pricing.Subtotal);
+                var totals = ShippingHelper.CalculateTotals(subtotal);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
-                    total_amount = subtotal + shippingFee,
+                    total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
                     payment_status = "Unpaid",
                     order_date = DateTime.Now,
-                    shipping_status = "Confirmed"
+                    shipping_status = "Confirmed",
+                    checkout_request_key = CheckoutRequestKey.ToString()
                 };
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync();
+                var duplicateResult = await SaveOrderOrRedirectAsync(order);
+                if (duplicateResult != null) return duplicateResult;
 
                 foreach (var entry in cartInventory)
                 {
@@ -453,7 +501,7 @@ namespace SmartOrderSystem.Controllers
                         order_id = order.order_id,
                         inventory_id = entry.Inventory.inventory_id,
                         quantity = entry.Item.Quantity,
-                        item_price = PromotionHelper.GetEffectivePrice(entry.Item.Shoe.default_price, PromotionHelper.GetCurrentPromotion(entry.Item.Shoe))
+                        item_price = pricingByCartItemId[entry.Item.CartItemId].UnitPrice
                     });
                     entry.Inventory.quantity_in_stock -= entry.Item.Quantity;
                     _context.CartItems.Remove(entry.Item);
@@ -465,6 +513,7 @@ namespace SmartOrderSystem.Controllers
                 var reservation = await _context.Reservations
                     .Include(r => r.ShoeInventory)
                         .ThenInclude(si => si!.ShoeCatalog)
+                            .ThenInclude(catalog => catalog!.Promotions)
                     .FirstOrDefaultAsync(r => r.reservation_id == state.ReservationId.Value && r.customer_id == customerId);
 
                 if (reservation == null)
@@ -487,30 +536,30 @@ namespace SmartOrderSystem.Controllers
 
                 var address = await CreateAddressAsync(state, customerId.Value);
 
-                var effectivePrice = PromotionHelper.GetEffectivePrice(catalog.default_price, PromotionHelper.GetCurrentPromotion(catalog));
-                var subtotal = effectivePrice * reservation.quantity;
-                var shippingFee = ShippingHelper.CalculateShipping(subtotal);
+                var pricing = PromotionHelper.CalculatePrice(catalog, reservation.quantity);
+                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
-                    total_amount = subtotal + shippingFee,
+                    total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
                     payment_status = "Unpaid",
                     order_date = DateTime.Now,
-                    shipping_status = "Confirmed"
+                    shipping_status = "Confirmed",
+                    checkout_request_key = CheckoutRequestKey.ToString()
                 };
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync();
+                var duplicateResult = await SaveOrderOrRedirectAsync(order);
+                if (duplicateResult != null) return duplicateResult;
 
                 _context.OrderItems.Add(new OrderItem
                 {
                     order_id = order.order_id,
                     inventory_id = inventory.inventory_id,
                     quantity = reservation.quantity,
-                    item_price = effectivePrice
+                    item_price = pricing.UnitPrice
                 });
 
                 reservation.status = "Converted";
@@ -521,6 +570,7 @@ namespace SmartOrderSystem.Controllers
             {
                 var inventory = await _context.ShoeInventories
                     .Include(i => i.ShoeCatalog)
+                        .ThenInclude(catalog => catalog!.Promotions)
                     .FirstOrDefaultAsync(i => i.inventory_id == state.InventoryId.Value);
 
                 var catalog = inventory?.ShoeCatalog;
@@ -537,30 +587,30 @@ namespace SmartOrderSystem.Controllers
 
                 var address = await CreateAddressAsync(state, customerId.Value);
 
-                var effectivePrice = PromotionHelper.GetEffectivePrice(catalog.default_price, PromotionHelper.GetCurrentPromotion(catalog));
-                var subtotal = effectivePrice * qty;
-                var shippingFee = ShippingHelper.CalculateShipping(subtotal);
+                var pricing = PromotionHelper.CalculatePrice(catalog, qty);
+                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
-                    total_amount = subtotal + shippingFee,
+                    total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
                     payment_status = "Unpaid",
                     order_date = DateTime.Now,
-                    shipping_status = "Confirmed"
+                    shipping_status = "Confirmed",
+                    checkout_request_key = CheckoutRequestKey.ToString()
                 };
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync();
+                var duplicateResult = await SaveOrderOrRedirectAsync(order);
+                if (duplicateResult != null) return duplicateResult;
 
                 _context.OrderItems.Add(new OrderItem
                 {
                     order_id = order.order_id,
                     inventory_id = inventory.inventory_id,
                     quantity = qty,
-                    item_price = effectivePrice
+                    item_price = pricing.UnitPrice
                 });
 
                 // Direct buy-now - walang reservation na naghold ng stock, kaya bawasan dito

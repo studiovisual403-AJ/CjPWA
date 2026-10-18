@@ -27,6 +27,10 @@
         bestSellingTable: document.getElementById("bestSellingTable"),
         brandLegend: document.getElementById("brandLegend"),
         statusLegend: document.getElementById("statusLegend"),
+        forecastLabel: document.getElementById("srForecastLabel"),
+        nextMonthForecast: document.getElementById("srNextMonthForecast"),
+        abcSummary: document.getElementById("srAbcSummary"),
+        abcTableBody: document.getElementById("srAbcTableBody"),
     };
 
     // ---------- formatting helpers ----------
@@ -94,6 +98,7 @@
     function renderAll(data) {
         renderKpis(data);
         renderMonthlyTrendChart(data.monthlySalesTrend || []);
+        renderAbcAnalytics(data);
         renderBrandDonut(data.brandSales || []);
         renderCategoryBar(data.categorySales || []);
         renderStatusDonut(data.orderStatusDistribution || []);
@@ -163,14 +168,24 @@
                     fill: true,
                     pointRadius: 3,
                     pointBackgroundColor: "#3b82f6",
+                }, {
+                    label: "3-month SMA",
+                    data: rows.map((r) => r.movingAverage),
+                    borderColor: "#f97316",
+                    backgroundColor: "transparent",
+                    borderDash: [7, 5],
+                    tension: 0.35,
+                    fill: false,
+                    pointRadius: 3,
+                    pointBackgroundColor: "#f97316",
                 }],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: (ctx) => money(ctx.parsed.y) } },
+                    legend: { display: true },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${money(ctx.parsed.y)}` } },
                 },
                 scales: {
                     y: { ticks: { callback: (v) => money(v) }, grid: { color: "#f1f5f9" } },
@@ -179,6 +194,57 @@
             },
         });
         canvas.parentElement.style.height = "260px";
+    }
+
+    function renderAbcAnalytics(data) {
+        if (els.forecastLabel) {
+            const label = els.forecastLabel.querySelector("span");
+            if (label) {
+                label.textContent = data.nextMonthForecastLabel
+                    ? `Forecast for ${data.nextMonthForecastLabel}`
+                    : "Next-Month Forecast";
+            }
+        }
+
+        if (els.nextMonthForecast) {
+            els.nextMonthForecast.textContent = data.nextMonthForecast == null
+                ? "Not enough monthly data"
+                : money(data.nextMonthForecast);
+        }
+
+        const summaries = data.abcClassSummaries || [];
+        if (els.abcSummary) {
+            els.abcSummary.innerHTML = summaries.map((summary) => {
+                const className = ["A", "B", "C"].includes(summary.className) ? summary.className : "C";
+                return `
+                    <div class="sr-class-summary">
+                        <span class="sr-class-badge sr-class-${className}">Class ${className}</span>
+                        <span>${summary.productCount} products</span>
+                        <strong>${(Number(summary.revenueShare || 0) * 100).toFixed(1)}%</strong>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        if (!els.abcTableBody) return;
+        const products = data.abcProducts || [];
+        if (!products.length) {
+            els.abcTableBody.innerHTML = `<tr><td colspan="5" class="sr-abc-empty">No product revenue for this period.</td></tr>`;
+            return;
+        }
+
+        els.abcTableBody.innerHTML = products.map((product) => {
+            const className = ["A", "B", "C"].includes(product.classification) ? product.classification : "C";
+            return `
+                <tr>
+                    <td>${escapeHtml(product.productName)}</td>
+                    <td>${money(product.revenue)}</td>
+                    <td>${(Number(product.share || 0) * 100).toFixed(1)}%</td>
+                    <td>${(Number(product.cumulativeShare || 0) * 100).toFixed(1)}%</td>
+                    <td><span class="sr-class-badge sr-class-${className}">${className}</span></td>
+                </tr>
+            `;
+        }).join("");
     }
 
     function renderBrandDonut(rows) {

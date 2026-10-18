@@ -4,6 +4,17 @@ namespace SmartOrderSystem.Helpers
 {
     public static class PromotionHelper
     {
+        public static decimal GetEffectivePrice(ShoeCatalog shoe)
+        {
+            return GetEffectivePrice(shoe.default_price, GetCurrentPromotion(shoe));
+        }
+
+        public static (decimal UnitPrice, decimal Subtotal) CalculatePrice(ShoeCatalog shoe, int quantity)
+        {
+            var unitPrice = GetEffectivePrice(shoe);
+            return (unitPrice, unitPrice * quantity);
+        }
+
         public static ProductPromotion? GetCurrentPromotion(ShoeCatalog shoe)
         {
             var today = DateTime.Today;

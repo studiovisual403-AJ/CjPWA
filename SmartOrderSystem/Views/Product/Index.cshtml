@@ -25,6 +25,14 @@
     </div>
 }
 
+@if (TempData["Error"] != null)
+{
+    <div class="alert-danger" role="alert">
+        <i class="ti ti-alert-circle" aria-hidden="true"></i>
+        <span>@TempData["Error"]</span>
+    </div>
+}
+
 <div class="catalog-card">
 
     <form method="get" asp-action="Index" class="catalog-search-bar">

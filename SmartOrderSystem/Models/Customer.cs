@@ -22,6 +22,12 @@ namespace SmartOrderSystem.Models
         [Column("contact_number")]
         public string contact_number { get; set; } = string.Empty;
 
+        [Column("receive_promotions")]
+        public bool receive_promotions { get; set; }
+
+        [Column("promo_consent_at")]
+        public DateTime? promo_consent_at { get; set; }
+
         [Required]
         [Column("password_hash")]
         public string password_hash { get; set; } = string.Empty;

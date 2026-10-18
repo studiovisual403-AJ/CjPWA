@@ -11,8 +11,8 @@ public class UploadValidationTests
         var provider = new MockFileProvider();
         var files = new List<IFormFile>
         {
-            provider.CreateFormFile("sample.jpg", 1024, "image/jpeg"),
-            provider.CreateFormFile("sample.png", 512, "image/png")
+            provider.CreateFormFile("sample.jpg", 1024, "image/jpeg", new byte[] { 0xFF, 0xD8, 0xFF }),
+            provider.CreateFormFile("sample.png", 512, "image/png", new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })
         };
 
         var result = ProductController.ValidateUploadFiles(files);
@@ -62,9 +62,11 @@ public class UploadValidationTests
 
     private sealed class MockFileProvider
     {
-        public IFormFile CreateFormFile(string fileName, int sizeInBytes, string contentType)
+        public IFormFile CreateFormFile(string fileName, int sizeInBytes, string contentType, byte[]? signature = null)
         {
             var bytes = new byte[sizeInBytes];
+            if (signature != null)
+                Array.Copy(signature, bytes, signature.Length);
             return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "imageFiles", fileName)
             {
                 Headers = new HeaderDictionary(),

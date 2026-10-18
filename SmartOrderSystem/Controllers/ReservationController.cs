@@ -30,21 +30,38 @@ namespace SmartOrderSystem.Controllers
 
         private async Task UpdateExpiredReservationsAsync()
         {
-            var expiredReservations = await _context.Reservations
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+
+            var expiredReservationIds = await _context.Reservations
                 .Where(r => r.status == "Pending"
                     && r.expires_at.HasValue
                     && r.expires_at <= DateTime.Now)
+                .Select(r => r.reservation_id)
                 .ToListAsync();
 
-            if (!expiredReservations.Any())
-                return;
-
-            foreach (var reservation in expiredReservations)
+            if (!expiredReservationIds.Any())
             {
+                await transaction.CommitAsync();
+                return;
+            }
+
+            foreach (var reservationId in expiredReservationIds.OrderBy(x => x))
+            {
+                var reservation = await _context.LockReservationAsync(reservationId);
+                if (reservation == null)
+                    continue;
+
+                if (reservation.status != "Pending")
+                    continue;
+
+                if (!reservation.expires_at.HasValue || reservation.expires_at > DateTime.Now)
+                    continue;
+
                 reservation.status = "Expired";
             }
 
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         private async Task<int> GetAvailableQuantityAsync(int inventoryId)
@@ -53,11 +70,8 @@ namespace SmartOrderSystem.Controllers
                 .Where(i => i.inventory_id == inventoryId)
                 .Select(i => (int?)i.quantity_in_stock)
                 .FirstOrDefaultAsync() ?? 0;
-            var heldQuantity = await _context.Reservations
-                .Where(r => r.inventory_id == inventoryId && r.status == "Pending" &&
-                            r.expires_at.HasValue && r.expires_at > DateTime.Now)
-                .SumAsync(r => (int?)r.quantity) ?? 0;
-            return Math.Max(0, inventoryQuantity - heldQuantity);
+            var heldQuantity = await _context.GetPendingReservationQuantityAsync(inventoryId, DateTime.Now);
+            return (int)Math.Max(0L, (long)inventoryQuantity - heldQuantity);
         }
 
         // GET: /Reservation - "My Reservations" page
@@ -85,9 +99,7 @@ namespace SmartOrderSystem.Controllers
                     ImagePath = r.ShoeInventory.ShoeCatalog.image_path,
                     Size = r.ShoeInventory.size,
                     Quantity = r.quantity,
-                    Price = PromotionHelper.GetEffectivePrice(
-                        r.ShoeInventory.ShoeCatalog.default_price,
-                        PromotionHelper.GetCurrentPromotion(r.ShoeInventory.ShoeCatalog)),
+                    Price = PromotionHelper.GetEffectivePrice(r.ShoeInventory.ShoeCatalog),
                     Status = r.status,
                     ReservationDate = r.reservation_date,
                     ExpiresAt = r.expires_at,
@@ -148,92 +160,95 @@ namespace SmartOrderSystem.Controllers
             return View(vm);
         }
 
-        // POST: /Reservation/Create - galing sa Details page
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(int inventoryId, int quantity)
-        {
-            var customerId = await GetCurrentCustomerIdAsync();
-            if (customerId == null)
-            {
-                TempData["Error"] = "Please log in first to make a reservation.";
-                return RedirectToAction("Login", "Account");
-            }
+        // POST: /Reservation/Create 
+       [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(int inventoryId, int quantity)
+{
+    var customerId = await GetCurrentCustomerIdAsync();
+    if (customerId == null)
+    {
+        TempData["Error"] = "Please log in first to make a reservation.";
+        return RedirectToAction("Login", "Account");
+    }
 
-            if (quantity <= 0)
-            {
-                TempData["Error"] = "Invalid quantity.";
-                return RedirectToAction("Index", "Shop");
-            }
+    if (quantity <= 0)
+    {
+        TempData["Error"] = "Invalid quantity.";
+        return RedirectToAction("Index", "Shop");
+    }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-            var inventory = await _context.ShoeInventories
-                .FirstOrDefaultAsync(i => i.inventory_id == inventoryId);
+    // LOCK muna: kung dalawang customer ang sabay mag-reserve ng huling pares, ang isa ay maghihintay
+    var locked = await _context.LockInventoryRowsAsync(new[] { inventoryId });
+    if (!locked.TryGetValue(inventoryId, out var inventory))
+    {
+        TempData["Error"] = "Selected size is no longer available.";
+        return RedirectToAction("Index", "Shop");
+    }
 
-            if (inventory == null)
-            {
-                TempData["Error"] = "Selected size is no longer available.";
-                return RedirectToAction("Index", "Shop");
-            }
+    if (await GetAvailableQuantityAsync(inventoryId) < quantity)
+    {
+        TempData["Error"] = "Not enough stock for the selected size.";
+        return RedirectToAction("Details", "Shop", new { id = inventory.shoe_id });
+    }
 
-            if (await GetAvailableQuantityAsync(inventoryId) < quantity)
-            {
-                TempData["Error"] = "Not enough stock for the selected size.";
-                return RedirectToAction("Details", "Shop", new { id = inventory.shoe_id });
-            }
+    var reservation = new Reservation
+    {
+        customer_id = customerId.Value,
+        inventory_id = inventoryId,
+        quantity = quantity,
+        status = "Pending",
+        reservation_date = DateTime.Now,
+        expires_at = DateTime.Now.AddHours(72)
+    };
 
-            var reservation = new Reservation
-            {
-                customer_id = customerId.Value,
-                inventory_id = inventoryId,
-                quantity = quantity,
-                status = "Pending",
-                reservation_date = DateTime.Now,
-                expires_at = DateTime.Now.AddHours(72)
-            };
+    _context.Reservations.Add(reservation);
+    await _context.SaveChangesAsync();
+    await transaction.CommitAsync();
 
-            _context.Reservations.Add(reservation);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            TempData["Success"] = "Reservation submitted! Please wait for admin approval.";
-            return RedirectToAction(nameof(Index));
-        }
+    TempData["Success"] = "Reservation submitted! Please wait for admin approval.";
+    return RedirectToAction(nameof(Index));
+}
 
         // POST: /Reservation/Cancel
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Cancel(int id)
-        {
-            await UpdateExpiredReservationsAsync();
+       [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Cancel(int id)
+{
+    await UpdateExpiredReservationsAsync();
 
-            var customerId = await GetCurrentCustomerIdAsync();
-            if (customerId == null)
-                return RedirectToAction("Login", "Account");
+    var customerId = await GetCurrentCustomerIdAsync();
+    if (customerId == null)
+        return RedirectToAction("Login", "Account");
 
-            var reservation = await _context.Reservations
-                .Include(r => r.ShoeInventory)
-                .FirstOrDefaultAsync(r => r.reservation_id == id && r.customer_id == customerId);
+    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-            if (reservation == null)
-                return NotFound();
+    var reservation = await _context.LockReservationAsync(id);
+    if (reservation == null || reservation.customer_id != customerId)
+        return NotFound();
 
-            if (reservation.status != "Pending" && reservation.status != "Approved")
-            {
-                TempData["Error"] = "This reservation can no longer be cancelled.";
-                return RedirectToAction(nameof(Index));
-            }
+    if (reservation.status != "Pending" && reservation.status != "Approved")
+    {
+        TempData["Error"] = "This reservation can no longer be cancelled.";
+        return RedirectToAction(nameof(Index));
+    }
 
-            if (reservation.status == "Approved" && reservation.ShoeInventory != null)
-                reservation.ShoeInventory.quantity_in_stock += reservation.quantity;
+    if (reservation.status == "Approved")
+    {
+        var locked = await _context.LockInventoryRowsAsync(new[] { reservation.inventory_id });
+        if (locked.TryGetValue(reservation.inventory_id, out var inventory))
+            inventory.quantity_in_stock += reservation.quantity;
+    }
 
-            reservation.status = "Cancelled";
-            await _context.SaveChangesAsync();
+    reservation.status = "Cancelled";
+    await _context.SaveChangesAsync();
+    await transaction.CommitAsync();
 
-            TempData["Success"] = "Reservation cancelled.";
-            return RedirectToAction(nameof(Index));
-        }
+    TempData["Success"] = "Reservation cancelled.";
+    return RedirectToAction(nameof(Index));
+}
 
         public async Task<IActionResult> Details(int id)
         {
@@ -274,7 +289,7 @@ namespace SmartOrderSystem.Controllers
                 Quantity = reservation.quantity,
                 Price = catalog == null
                     ? 0
-                    : PromotionHelper.GetEffectivePrice(catalog.default_price, PromotionHelper.GetCurrentPromotion(catalog)),
+                    : PromotionHelper.GetEffectivePrice(catalog),
                 Status = reservation.status,
                 ReservationDate = reservation.reservation_date,
                 ExpiresAt = reservation.expires_at,

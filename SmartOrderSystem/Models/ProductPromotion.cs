@@ -15,6 +15,8 @@ namespace SmartOrderSystem.Models
     public DateTime start_date { get; set; }
     public DateTime end_date { get; set; }
     public string status { get; set; }
+    [Column("last_sent_at")]
+    public DateTime? LastSentAt { get; set; }
 
     [ForeignKey("shoe_id")]
     public ShoeCatalog? Shoe { get; set; }

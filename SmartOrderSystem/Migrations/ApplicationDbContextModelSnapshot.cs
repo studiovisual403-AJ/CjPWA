@@ -113,6 +113,14 @@ namespace SmartOrderSystem.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("password_hash");
 
+                    b.Property<DateTime?>("promo_consent_at")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("promo_consent_at");
+
+                    b.Property<bool>("receive_promotions")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("receive_promotions");
+
                     b.Property<int>("reset_answer_failed_attempts")
                         .HasColumnType("int")
                         .HasColumnName("reset_answer_failed_attempts");
@@ -261,6 +269,11 @@ namespace SmartOrderSystem.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("cancellation_reason");
 
+                    b.Property<string>("checkout_request_key")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("checkout_request_key");
+
                     b.Property<string>("courier")
                         .HasColumnType("longtext")
                         .HasColumnName("courier");
@@ -306,6 +319,9 @@ namespace SmartOrderSystem.Migrations
                     b.HasKey("order_id");
 
                     b.HasIndex("address_id");
+
+                    b.HasIndex("checkout_request_key")
+                        .IsUnique();
 
                     b.HasIndex("customer_id");
 
@@ -389,6 +405,10 @@ namespace SmartOrderSystem.Migrations
                     b.Property<int>("promotion_id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastSentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("last_sent_at");
 
                     b.Property<string>("campaign_name")
                         .IsRequired()
@@ -561,7 +581,8 @@ namespace SmartOrderSystem.Migrations
 
                     b.HasKey("inventory_id");
 
-                    b.HasIndex("shoe_id");
+                    b.HasIndex("shoe_id", "size")
+                        .IsUnique();
 
                     b.ToTable("shoe_inventory");
                 });

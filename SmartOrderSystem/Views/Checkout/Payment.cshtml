@@ -26,6 +26,7 @@
 
                     <form asp-action="Confirmation" method="post">
                         @Html.AntiForgeryToken()
+                        <input type="hidden" name="CheckoutRequestKey" value="@Model.CheckoutRequestKey" />
 
                         <div class="border border-danger rounded-3 p-3 mb-3 d-flex align-items-center gap-3">
                             <input type="radio" name="PaymentMethod" value="Cash on Delivery" checked class="form-check-input mt-0" />
@@ -59,3 +60,23 @@
         </div>
     </div>
 </div>
+<script>
+    const checkoutForm = document.querySelector('form[action*="Confirmation"]');
+    const placeBtn = checkoutForm?.querySelector('button[type="submit"]');
+    const placeBtnHtml = placeBtn?.innerHTML;
+
+    checkoutForm?.addEventListener('submit', function () {
+        if (placeBtn) {
+            placeBtn.disabled = true;
+            placeBtn.textContent = 'Placing order...';
+        }
+    });
+
+    // Ibalik ang button kapag bumalik ang user gamit ang Back (bfcache)
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted && placeBtn) {
+            placeBtn.disabled = false;
+            placeBtn.innerHTML = placeBtnHtml;
+        }
+    });
+</script>

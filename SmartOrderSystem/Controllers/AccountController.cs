@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SmartOrderSystem.Data;
 using SmartOrderSystem.Models;
 using SmartOrderSystem.ViewModels;
@@ -31,6 +32,7 @@ namespace SmartOrderSystem.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [EnableRateLimiting("account-login")]
         public IActionResult Login(LoginView model)
         {
             if (!ModelState.IsValid)
@@ -86,15 +88,16 @@ namespace SmartOrderSystem.Controllers
 
             var email = model.Email.Trim();
             var customer = _context.Customers.FirstOrDefault(c => c.email == email);
-            if (customer == null)
-            {
-                ModelState.AddModelError(string.Empty, "We could not verify that account. Check your details and try again.");
-                ViewBag.ControllerName = "Account";
-                return View(model);
-            }
-            HttpContext.Session.SetString(ResetEmailKey, customer.email);
+            HttpContext.Session.Remove(ResetEmailKey);
             HttpContext.Session.Remove(ResetVerifiedAtKey);
-            return RedirectToAction("SecurityQuestions");
+            if (customer != null)
+            {
+                HttpContext.Session.SetString(ResetEmailKey, customer.email);
+            }
+
+            // Keep the initial response identical for known and unknown email addresses.
+            ViewBag.ResetRequestSubmitted = true;
+            return View(model);
         }
 
         [HttpGet]
@@ -198,7 +201,7 @@ namespace SmartOrderSystem.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Register(string FullName, string Email, string ContactNumber, string Password)
+        public IActionResult Register(string FullName, string Email, string ContactNumber, string Password, bool ReceivePromotions = false)
         {
             FullName = FullName?.Trim() ?? string.Empty;
             Email = Email?.Trim() ?? string.Empty;
@@ -236,6 +239,8 @@ namespace SmartOrderSystem.Controllers
                 full_name = FullName,
                 email = Email,
                 contact_number = ContactNumber,
+                receive_promotions = ReceivePromotions,
+                promo_consent_at = ReceivePromotions ? DateTime.Now : null,
                 password_hash = BCrypt.Net.BCrypt.HashPassword(Password)
             };
 
@@ -544,50 +549,61 @@ namespace SmartOrderSystem.Controllers
                 CustomerId = customer.customer_id,
                 FullName = customer.full_name,
                 Email = customer.email,
-                ContactNumber = customer.contact_number
+                ContactNumber = customer.contact_number,
+                ReceivePromotions = customer.receive_promotions
             };
 
             return View(model);
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult EditProfile(EditProfileViewModel model)
-        {
-            var email = HttpContext.Session.GetString("CustomerUser");
-            if (string.IsNullOrEmpty(email))
-            {
-                return RedirectToAction("Login", "Account");
-            }
+[ValidateAntiForgeryToken]
+public IActionResult EditProfile(EditProfileViewModel model)
+{
+    var email = HttpContext.Session.GetString("CustomerUser");
+    if (string.IsNullOrEmpty(email))
+    {
+        return RedirectToAction("Login", "Account");
+    }
 
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
+    if (!ModelState.IsValid)
+    {
+        return View(model);
+    }
 
-            var customer = _context.Customers.FirstOrDefault(c => c.email == email);
-            if (customer == null)
-            {
-                return RedirectToAction("Login", "Account");
-            }
+    var customer = _context.Customers.FirstOrDefault(c => c.email == email);
+    if (customer == null)
+    {
+        return RedirectToAction("Login", "Account");
+    }
 
-            if (!string.Equals(customer.email, model.Email, StringComparison.OrdinalIgnoreCase)
-                && _context.Customers.Any(c => c.email == model.Email))
-            {
-                ModelState.AddModelError(nameof(model.Email), "Email is already in use by another account.");
-                return View(model);
-            }
+    if (!string.Equals(customer.email, model.Email, StringComparison.OrdinalIgnoreCase)
+        && _context.Customers.Any(c => c.email == model.Email))
+    {
+        ModelState.AddModelError(nameof(model.Email), "Email is already in use by another account.");
+        return View(model);
+    }
 
-            customer.full_name = model.FullName;
-            customer.email = model.Email;
-            customer.contact_number = model.ContactNumber;
-            _context.SaveChanges();
+    if (Request.Form.ContainsKey("ReceivePromotions"))
+    {
+        if (model.ReceivePromotions && !customer.receive_promotions)
+            customer.promo_consent_at = DateTime.Now;
+        else if (!model.ReceivePromotions)
+            customer.promo_consent_at = null;
 
-            HttpContext.Session.SetString("CustomerUser", customer.email);
+        customer.receive_promotions = model.ReceivePromotions;
+    }
 
-            TempData["Success"] = "Profile updated successfully!";
-            return RedirectToAction("MyAccount");
-        }
+    customer.full_name = model.FullName;
+    customer.email = model.Email;
+    customer.contact_number = model.ContactNumber;
+    _context.SaveChanges();
+
+    HttpContext.Session.SetString("CustomerUser", customer.email);
+
+    TempData["Success"] = "Profile updated successfully!";
+    return RedirectToAction("MyAccount");
+}
 
         // ============================
         // CHANGE PASSWORD

@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Data;
+using MySqlConnector;
 using SmartOrderSystem.Services;
+using SmartOrderSystem.Helpers;
 
 namespace SmartOrderSystem.Controllers
 {
@@ -32,6 +34,18 @@ namespace SmartOrderSystem.Controllers
             return await _context.Orders
                 .Include(o => o.OrderItems)
                 .FirstOrDefaultAsync(o => o.order_id == orderId);
+        }
+
+        private static bool IsRetryableLockFailure(Exception exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException mysqlException &&
+                    (mysqlException.Number == 1213 || mysqlException.Number == 1205))
+                    return true;
+            }
+
+            return false;
         }
 
         private async Task<Order?> GetOrderWithDetailsAsync(int id)
@@ -129,56 +143,68 @@ namespace SmartOrderSystem.Controllers
         {
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.order_id == orderId);
-
-            if (order == null)
-                return Json(new { success = false, message = "Order not found." });
-
-            if (!string.Equals(order.status?.Trim(), "Pending", StringComparison.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "This order can no longer be confirmed." });
-
-            if (order.OrderItems.Count == 0 || order.OrderItems.Any(item => item.quantity <= 0))
-                return Json(new { success = false, message = "The order contains invalid item quantities." });
-
-            var requestedQuantities = order.OrderItems
-                .GroupBy(item => item.inventory_id)
-                .ToDictionary(group => group.Key, group => group.Sum(item => item.quantity));
-
-            foreach (var requested in requestedQuantities)
+            try
             {
-                var shoe = await _context.ShoeInventories.FindAsync(requested.Key);
-                if (shoe == null || shoe.quantity_in_stock < requested.Value)
+                var order = await _context.Orders
+                    .FromSqlInterpolated($"SELECT * FROM orders WHERE order_id = {orderId} FOR UPDATE")
+                    .FirstOrDefaultAsync();
+
+                if (order == null)
+                    return Json(new { success = false, message = "Order not found." });
+
+                await _context.Entry(order).Collection(o => o.OrderItems).LoadAsync();
+
+                if (!string.Equals(order.status?.Trim(), "Pending", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, message = "This order can no longer be confirmed." });
+
+                if (order.OrderItems.Count == 0 || order.OrderItems.Any(item => item.quantity <= 0))
+                    return Json(new { success = false, message = "The order contains invalid item quantities." });
+
+                var requestedQuantities = order.OrderItems
+                    .GroupBy(item => item.inventory_id)
+                    .ToDictionary(group => group.Key, group => group.Sum(item => item.quantity));
+
+                var inventoryIds = requestedQuantities.Keys.OrderBy(x => x).ToList();
+                var lockedInventory = await _context.LockInventoryRowsAsync(inventoryIds);
+
+                foreach (var requested in requestedQuantities)
                 {
-                    return Json(new
+                    if (!lockedInventory.TryGetValue(requested.Key, out var shoe) || shoe.quantity_in_stock < requested.Value)
                     {
-                        success = false,
-                        message = $"Insufficient stock for one or more items. (Available: {shoe?.quantity_in_stock ?? 0}, Required: {requested.Value})"
-                    });
+                        var available = lockedInventory.TryGetValue(requested.Key, out var current) ? current.quantity_in_stock : 0;
+                        return Json(new
+                        {
+                            success = false,
+                            message = $"Insufficient stock for one or more items. (Available: {available}, Required: {requested.Value})"
+                        });
+                    }
                 }
-            }
 
-            foreach (var requested in requestedQuantities)
+                foreach (var requested in requestedQuantities)
+                {
+                    lockedInventory[requested.Key].quantity_in_stock -= requested.Value;
+                }
+
+                order.status = "Confirmed";
+                order.shipping_status = "Confirmed";
+                order.updated_at = DateTime.Now;
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await _notificationService.NotifyCustomerAsync(
+                    order.customer_id,
+                    "Confirmed",
+                    "Order Confirmed",
+                    $"Your order #ORD-{order.order_id:D4} has been confirmed and is now being processed.",
+                    orderId: order.order_id);
+
+                return Json(new { success = true, message = "Order confirmed successfully. Stock was deducted.", newStatus = "Confirmed" });
+            }
+            catch (Exception ex) when (IsRetryableLockFailure(ex))
             {
-                var shoe = await _context.ShoeInventories.FindAsync(requested.Key);
-                shoe!.quantity_in_stock -= requested.Value;
+                await transaction.RollbackAsync();
+                return Json(new { success = false, message = "Database contention prevented confirming this order. Please retry." });
             }
-
-            order.status = "Confirmed";
-            order.shipping_status = "Confirmed";
-            order.updated_at = DateTime.Now;
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            await _notificationService.NotifyCustomerAsync(
-                order.customer_id,
-                "Confirmed",
-                "Order Confirmed",
-                $"Your order #ORD-{order.order_id:D4} has been confirmed and is now being processed.",
-                orderId: order.order_id);
-
-            return Json(new { success = true, message = "Order confirmed successfully. Stock was deducted.", newStatus = "Confirmed" });
         }
 
         // 4. CANCEL ORDER: with reason, ibabalik ang stock kung na-deduct na
@@ -188,53 +214,65 @@ namespace SmartOrderSystem.Controllers
         {
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.order_id == orderId);
-
-            if (order == null)
-                return Json(new { success = false, message = "Order not found." });
-
-            if (string.IsNullOrWhiteSpace(reason))
-                return Json(new { success = false, message = "A cancellation reason is required." });
-
-            var currentStatus = order.status?.Trim().ToLower();
-            var cancellableStatuses = new[] { "pending", "confirmed", "preparing" };
-
-            if (!cancellableStatuses.Contains(currentStatus))
-                return Json(new { success = false, message = "This order can no longer be cancelled because it has already been shipped or completed." });
-
-            if (currentStatus == "confirmed" || currentStatus == "preparing")
+            try
             {
-                var refundedQuantities = order.OrderItems
-                    .GroupBy(item => item.inventory_id)
-                    .ToDictionary(group => group.Key, group => group.Sum(item => item.quantity));
+                var order = await _context.Orders
+                    .FromSqlInterpolated($"SELECT * FROM orders WHERE order_id = {orderId} FOR UPDATE")
+                    .FirstOrDefaultAsync();
 
-                foreach (var refunded in refundedQuantities)
+                if (order == null)
+                    return Json(new { success = false, message = "Order not found." });
+
+                await _context.Entry(order).Collection(o => o.OrderItems).LoadAsync();
+
+                if (string.IsNullOrWhiteSpace(reason))
+                    return Json(new { success = false, message = "A cancellation reason is required." });
+
+                var currentStatus = order.status?.Trim().ToLower();
+                var cancellableStatuses = new[] { "pending", "confirmed", "preparing" };
+
+                if (!cancellableStatuses.Contains(currentStatus))
+                    return Json(new { success = false, message = "This order can no longer be cancelled because it has already been shipped or completed." });
+
+                if (currentStatus == "confirmed" || currentStatus == "preparing")
                 {
-                    var shoe = await _context.ShoeInventories.FindAsync(refunded.Key);
-                    if (shoe != null)
+                    var refundedQuantities = order.OrderItems
+                        .GroupBy(item => item.inventory_id)
+                        .ToDictionary(group => group.Key, group => group.Sum(item => item.quantity));
+
+                    var inventoryIds = refundedQuantities.Keys.OrderBy(x => x).ToList();
+                    var lockedInventory = await _context.LockInventoryRowsAsync(inventoryIds);
+
+                    foreach (var refunded in refundedQuantities)
                     {
-                        shoe.quantity_in_stock += refunded.Value;
+                        if (lockedInventory.TryGetValue(refunded.Key, out var shoe))
+                        {
+                            shoe.quantity_in_stock += refunded.Value;
+                        }
                     }
                 }
+
+                order.status = "Cancelled";
+                order.shipping_status = "Cancelled";
+                order.cancellation_reason = reason;
+                order.updated_at = DateTime.Now;
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await _notificationService.NotifyCustomerAsync(
+                    order.customer_id,
+                    "Cancelled",
+                    "Order Cancelled",
+                    $"Your order #ORD-{order.order_id:D4} was cancelled. Reason: {reason}",
+                    orderId: order.order_id);
+
+                return Json(new { success = true, message = "The order was cancelled successfully." });
             }
-
-            order.status = "Cancelled";
-            order.shipping_status = "Cancelled";
-            order.cancellation_reason = reason;
-            order.updated_at = DateTime.Now;
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            await _notificationService.NotifyCustomerAsync(
-                order.customer_id,
-                "Cancelled",
-                "Order Cancelled",
-                $"Your order #ORD-{order.order_id:D4} was cancelled. Reason: {reason}",
-                orderId: order.order_id);
-
-            return Json(new { success = true, message = "The order was cancelled successfully." });
+            catch (Exception ex) when (IsRetryableLockFailure(ex))
+            {
+                await transaction.RollbackAsync();
+                return Json(new { success = false, message = "Database contention prevented cancelling this order. Please retry." });
+            }
         }
 
         // 5. MARK AS PAID (COD): Delivered -> Completed
@@ -242,7 +280,10 @@ namespace SmartOrderSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkAsPaid(int orderId)
         {
-            var order = await _context.Orders.FindAsync(orderId);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            var order = await _context.Orders
+                .FromSqlInterpolated($"SELECT * FROM orders WHERE order_id = {orderId} FOR UPDATE")
+                .FirstOrDefaultAsync();
             if (order == null)
                 return Json(new { success = false, message = "Order not found." });
 
@@ -256,8 +297,8 @@ namespace SmartOrderSystem.Controllers
             order.status = "Completed";
             order.shipping_status = "Completed";
             order.updated_at = DateTime.Now;
-            _context.Update(order);
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return Json(new { success = true, message = "The order was marked as paid and completed." });
         }
@@ -285,7 +326,10 @@ namespace SmartOrderSystem.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ProcessStatus(int orderId, string nextStatus, string courier, string trackingNumber)
         {
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.order_id == orderId);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            var order = await _context.Orders
+                .FromSqlInterpolated($"SELECT * FROM orders WHERE order_id = {orderId} FOR UPDATE")
+                .FirstOrDefaultAsync();
             if (order == null) return NotFound();
 
             var normalizedCurrentStatus = order.status?.Trim() ?? string.Empty;
@@ -298,26 +342,43 @@ namespace SmartOrderSystem.Controllers
             };
 
             if (!allowedTransitions.TryGetValue(normalizedCurrentStatus, out var allowedStatuses) ||
-                !allowedStatuses.Contains(normalizedNextStatus, StringComparer.OrdinalIgnoreCase))
+            !allowedStatuses.Contains(normalizedNextStatus, StringComparer.OrdinalIgnoreCase))
             {
                 TempData["Error"] = "That order status transition is not allowed.";
                 return RedirectToAction(nameof(Details), new { id = orderId });
             }
 
-            if (courier?.Length > 100 || trackingNumber?.Length > 100)
+            var trimmedCourier = courier?.Trim();
+            var trimmedTracking = trackingNumber?.Trim();
+
+            if (trimmedCourier?.Length > 100 || trimmedTracking?.Length > 100)
             {
                 TempData["Error"] = "Courier and tracking number must be 100 characters or fewer.";
                 return RedirectToAction(nameof(Details), new { id = orderId });
             }
 
-            if (!string.IsNullOrWhiteSpace(courier)) order.courier = courier.Trim();
-            if (!string.IsNullOrWhiteSpace(trackingNumber)) order.tracking_number = trackingNumber.Trim();
+            // Courier at tracking number ay REQUIRED bago mag In Transit
+            if (string.Equals(normalizedNextStatus, "In Transit", StringComparison.OrdinalIgnoreCase))
+            {
+                var finalCourier = !string.IsNullOrWhiteSpace(trimmedCourier) ? trimmedCourier : order.courier?.Trim();
+                var finalTracking = !string.IsNullOrWhiteSpace(trimmedTracking) ? trimmedTracking : order.tracking_number?.Trim();
+
+                if (string.IsNullOrWhiteSpace(finalCourier) || string.IsNullOrWhiteSpace(finalTracking))
+                {
+                    TempData["Error"] = "Courier and tracking number are required before marking the order as In Transit.";
+                    return RedirectToAction(nameof(Details), new { id = orderId });
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(trimmedCourier)) order.courier = trimmedCourier;
+            if (!string.IsNullOrWhiteSpace(trimmedTracking)) order.tracking_number = trimmedTracking;
 
             order.status = allowedStatuses.First(status =>
-                string.Equals(status, normalizedNextStatus, StringComparison.OrdinalIgnoreCase));
+            string.Equals(status, normalizedNextStatus, StringComparison.OrdinalIgnoreCase));
             order.shipping_status = order.status;
             order.updated_at = DateTime.Now;
             await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             var (notifTitle, notifMessage) = order.status switch
             {
@@ -328,6 +389,9 @@ namespace SmartOrderSystem.Controllers
             };
 
             await _notificationService.NotifyCustomerAsync(order.customer_id, order.status!, notifTitle, notifMessage, orderId: order.order_id);
+
+            // POP-UP: success toast sa admin
+            TempData["Success"] = $"Order #ORD-{order.order_id:D4} is now {order.status}. Customer has been notified.";
 
             return RedirectToAction(nameof(Details), new { id = orderId });
         }

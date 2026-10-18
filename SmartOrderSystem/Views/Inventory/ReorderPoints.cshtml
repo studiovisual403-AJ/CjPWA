@@ -1,0 +1,231 @@
+@model SmartOrderSystem.ViewModels.RopDashboardViewModel
+@{
+    ViewData["Title"] = "Reorder Points";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    string search = ViewBag.SearchTerm as string ?? "";
+    string? qRoute = string.IsNullOrWhiteSpace(search) ? null : search;
+    int totalFiltered = (int)(ViewBag.TotalFiltered ?? Model.Rows.Count);
+    int pageSize = (int)(ViewBag.PageSize ?? 15);
+    int startIndex = (Model.CurrentPage - 1) * pageSize;
+    int firstPage = Math.Max(1, Model.CurrentPage - 2);
+    int lastPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+}
+@functions {
+    private static string BadgeClass(string s) => s switch
+    {
+        "Out of Stock" => "rp-b-red",
+        "Reorder Now" => "rp-b-blue",
+        "Healthy" => "rp-b-green",
+        _ => "rp-b-purple"
+    };
+}
+
+<style>
+    /* Breadcrumbs & Header */
+    .rp-crumbs { font-size: 13px; display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+    .rp-crumbs a { color: #3b6fd4; text-decoration: none; }
+    .rp-crumbs .rp-cur { font-weight: 600; color: #1e3a5f; }
+    .rp-head { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+    .rp-head-icon { width: 52px; height: 52px; border-radius: 14px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+    .rp-head h1 { margin: 0; font-size: 26px; font-weight: 800; color: #1e3a5f; }
+    .rp-head p { margin: 2px 0 0; font-size: 12.5px; color: #5b7090; }
+
+    /* Summary Cards Grid & Styling */
+    .rp-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
+    .rp-card { display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: 14px; border: 1px solid #e5e7eb; background: #ffffff; text-decoration: none; color: #1e3a5f; transition: transform .12s, box-shadow .12s; }
+    .rp-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); color: #1e3a5f; }
+    
+    /* Dark rounded icon box sa bawat card */
+    .rp-card .ico { width: 48px; height: 48px; border-radius: 10px; background-color: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    
+    /* Text details sa card */
+    .rp-card-content { display: flex; flex-direction: column; }
+    .rp-card .lbl { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #6b7280; }
+    .rp-card .num { font-size: 24px; font-weight: 800; line-height: 1.2; color: #111827; }
+    .rp-card .sub { font-size: 12px; color: #5b7090; }
+
+    /* Accent colors para sa mga icons sa loob ng dark box */
+    .rp-c-red .ico { color: #ef4444; }
+    .rp-c-blue .ico { color: #3b82f6; }
+    .rp-c-green .ico { color: #10b981; }
+    .rp-c-purple .ico { color: #a855f7; }
+
+    /* Panel & Tools */
+    .rp-panel { background: #fff; border-radius: 14px; padding: 18px; box-shadow: 0 1px 6px rgba(30,58,95,.08); }
+    .rp-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+    .rp-showing { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; color: #1e3a5f; }
+    .rp-showing i { width: 34px; height: 34px; border-radius: 10px; background: #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; }
+    .rp-right { display: flex; gap: 10px; align-items: center; }
+    .rp-search { position: relative; margin: 0; }
+    .rp-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6b7f9c; }
+    .rp-search input { width: 270px; padding: 9px 12px 9px 34px; border: 1px solid #d5deea; border-radius: 10px; font-size: 14px; }
+    .rp-export { display: inline-flex; gap: 8px; align-items: center; padding: 9px 16px; border-radius: 10px; background: #e6f0fd; color: #1e3a5f; font-weight: 600; text-decoration: none; font-size: 14px; }
+    .rp-export:hover { background: #d6e6fb; color: #1e3a5f; }
+
+    /* Table Styling */
+    .rp-table { width: 100%; border-collapse: collapse; }
+    .rp-table thead th { background: #eef3fa; font-size: 11.5px; letter-spacing: .05em; color: #4b5d78; text-align: left; padding: 12px 14px; text-transform: uppercase; }
+    .rp-table tbody td { padding: 10px 14px; border-bottom: 1px solid #eef2f7; font-size: 14px; vertical-align: middle; color: #1e3a5f; }
+    .rp-prod { display: flex; align-items: center; gap: 12px; }
+    .rp-thumb { width: 40px; height: 32px; border-radius: 6px; object-fit: cover; background: #eef2f7; flex-shrink: 0; }
+    .rp-thumb-empty { display: inline-flex; align-items: center; justify-content: center; color: #8fa0b8; }
+    .rp-pname { font-weight: 600; }
+    .rp-sku { font-size: 11.5px; color: #6b7f9c; }
+    
+    /* Status Badges */
+    .rp-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .rp-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .rp-b-red { background: #fdecec; color: #dc2626; }
+    .rp-b-blue { background: #e6f0fd; color: #2563eb; }
+    .rp-b-green { background: #e5f7ee; color: #16a34a; }
+    .rp-b-purple { background: #f3e8fb; color: #9333ea; }
+
+    /* Pagination & Footer */
+    .rp-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 13px; color: #4b5d78; flex-wrap: wrap; gap: 8px; }
+    .rp-pager { display: flex; gap: 6px; }
+    .rp-pager a, .rp-pager span { padding: 7px 14px; border-radius: 8px; border: 1px solid #e1e8f1; text-decoration: none; color: #1e3a5f; font-size: 13px; background: #fff; }
+    .rp-pager .active { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .rp-pager .disabled { color: #a9b6c9; }
+    .rp-empty { text-align: center; padding: 30px; color: #6b7f9c; }
+
+    /* Responsive Design */
+    @@media (max-width: 992px) { .rp-cards { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 576px) { .rp-cards { grid-template-columns: 1fr; } .rp-search input { width: 100%; } }
+
+</style>
+<div class="rp-crumbs">
+    <a asp-action="Index">Inventory</a>
+    <i class="ti ti-chevron-right"></i>
+    <span class="rp-cur">Reorder Points</span>
+</div>
+
+<div class="rp-head">
+    <div class="rp-head-icon"><i class="ti ti-box"></i></div>
+    <div>
+        <h1>Reorder Points (ROP)</h1>
+    </div>
+</div>
+
+<div class="rp-cards">
+    <a class="rp-card rp-c-red" asp-action="ReorderPoints" asp-route-status="Out of Stock" asp-route-q="@qRoute">
+        <div class="ico"><i class="ti ti-box"></i></div>
+        <div><div class="lbl">OUT OF STOCK</div><div class="num">@Model.OutOfStockCount</div><div class="sub">Products need restocking</div></div>
+    </a>
+    <a class="rp-card rp-c-blue" asp-action="ReorderPoints" asp-route-status="Reorder Now" asp-route-q="@qRoute">
+        <div class="ico"><i class="ti ti-refresh"></i></div>
+        <div><div class="lbl">REORDER NOW</div><div class="num">@Model.ReorderNowCount</div><div class="sub">Items at or below reorder level</div></div>
+    </a>
+    <a class="rp-card rp-c-green" asp-action="ReorderPoints" asp-route-status="Healthy" asp-route-q="@qRoute">
+        <div class="ico"><i class="ti ti-heart"></i></div>
+        <div><div class="lbl">HEALTHY</div><div class="num">@Model.HealthyCount</div><div class="sub">Items with sufficient stock</div></div>
+    </a>
+    <a class="rp-card rp-c-purple" asp-action="ReorderPoints" asp-route-status="No Demand Data" asp-route-q="@qRoute">
+        <div class="ico"><i class="ti ti-ban"></i></div>
+        <div><div class="lbl">NO DEMAND DATA</div><div class="num">@Model.NoDataCount</div><div class="sub">Items without demand data</div></div>
+    </a>
+</div>
+
+<div class="rp-panel">
+    <div class="rp-tools">
+        <div class="rp-showing"><i class="ti ti-list"></i> Showing: @Model.CurrentStatus</div>
+        <div class="rp-right">
+            <form method="get" asp-action="ReorderPoints" class="rp-search">
+                <i class="ti ti-search"></i>
+                <input type="text" name="q" value="@search" placeholder="Search model, brand, or size..." />
+                <input type="hidden" name="status" value="@Model.CurrentStatus" />
+            </form>
+            <a class="rp-export" asp-action="ExportReorderPoints" asp-route-status="@Model.CurrentStatus" asp-route-q="@qRoute">
+                <i class="ti ti-download"></i> Export
+            </a>
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="rp-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Product</th>
+                    <th>Size</th>
+                    <th>In Stock</th>
+                    <th>Avg Daily Demand</th>
+                    <th>Safety Stock</th>
+                    <th>ROP</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Rows.Any())
+                {
+                    <tr><td colspan="8" class="rp-empty">No items found.</td></tr>
+                }
+                @{ int n = startIndex; }
+                @foreach (var r in Model.Rows)
+                {
+                    n++;
+                    <tr>
+                        <td>@n</td>
+                        <td>
+                            <div class="rp-prod">
+                                @if (!string.IsNullOrWhiteSpace(r.ImageUrl))
+                                {
+                                    <img class="rp-thumb" src="@Url.Content(r.ImageUrl)" alt="" />
+                                }
+                                else
+                                {
+                            
+                                }
+                                <div>
+                                    <div class="rp-pname">@r.ModelName</div>
+                                    <div class="rp-sku">@r.Brand · Size @r.Size.ToString("0.#")</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>@r.Size.ToString("0.#")</td>
+                        <td><strong>@r.Stock</strong></td>
+                        <td>@r.AvgDailyDemand.ToString("0.##")</td>
+                        <td>@r.SafetyStock</td>
+                        <td><strong>@r.ReorderPoint</strong></td>
+                        <td><span class="rp-badge @BadgeClass(r.Status)">@r.Status</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="rp-foot">
+        <div>Showing @Model.Rows.Count of @totalFiltered items</div>
+        <div class="rp-pager">
+            @if (Model.CurrentPage > 1)
+            {
+                <a asp-action="ReorderPoints" asp-route-status="@Model.CurrentStatus" asp-route-q="@qRoute" asp-route-page="@(Model.CurrentPage - 1)">‹ Previous</a>
+            }
+            else
+            {
+                <span class="disabled">‹ Previous</span>
+            }
+
+            @for (int p = firstPage; p <= lastPage; p++)
+            {
+                if (p == Model.CurrentPage)
+                {
+                    <span class="active">@p</span>
+                }
+                else
+                {
+                    <a asp-action="ReorderPoints" asp-route-status="@Model.CurrentStatus" asp-route-q="@qRoute" asp-route-page="@p">@p</a>
+                }
+            }
+
+            @if (Model.CurrentPage < Model.TotalPages)
+            {
+                <a asp-action="ReorderPoints" asp-route-status="@Model.CurrentStatus" asp-route-q="@qRoute" asp-route-page="@(Model.CurrentPage + 1)">Next ›</a>
+            }
+            else
+            {
+                <span class="disabled">Next ›</span>
+            }
+        </div>
+    </div>
+</div>

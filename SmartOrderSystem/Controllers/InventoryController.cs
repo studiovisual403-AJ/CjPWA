@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using SmartOrderSystem.ViewModels;
 using SmartOrderSystem.Models;
 using SmartOrderSystem.Data;
@@ -7,16 +8,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Data;
+using SmartOrderSystem.Helpers;
+using SmartOrderSystem.Services;
 
 namespace SmartOrderSystem.Controllers
 {
     public class InventoryController : AdminBaseController
     {
         private readonly ApplicationDbContext _context;
+        private readonly IReorderPointService _reorderPointService;
 
-        public InventoryController(ApplicationDbContext context) : base(context)
+        public InventoryController(ApplicationDbContext context, IReorderPointService reorderPointService) : base(context)
         {
             _context = context;
+            _reorderPointService = reorderPointService;
         }
 
         private static List<decimal> GetTargetSizes()
@@ -95,67 +101,191 @@ namespace SmartOrderSystem.Controllers
             return View(viewModel);
         }
 
-        // 2. LIVE SAVING TO DATABASE ONCE RESTOCK IS CLICKED
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Restock(string Sku, decimal Size, int Quantity)
+        // 2. RESTOCK: may row lock para hindi magkamali ang bilang kapag sabay ang restock/order
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Restock(string Sku, decimal Size, int Quantity)
+{
+    if (string.IsNullOrWhiteSpace(Sku) || Quantity <= 0 || Size < 36 || Size > 45 || Size != decimal.Truncate(Size))
+    {
+        TempData["Error"] = "Please enter a valid quantity.";
+        return RedirectToAction("Index");
+    }
+
+    if (!Sku.StartsWith("SHOE-", StringComparison.OrdinalIgnoreCase) || !int.TryParse(Sku[5..], out int targetShoeId))
+    {
+        TempData["Error"] = "The product SKU format is invalid.";
+        return RedirectToAction("Index");
+    }
+
+    decimal sizeDecimal = Size;
+
+    if (!await _context.ShoeCatalogs.AnyAsync(s => s.shoe_id == targetShoeId))
+    {
+        TempData["Error"] = "The selected product does not exist.";
+        return RedirectToAction("Index");
+    }
+
+    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+    ShoeInventory? newInventoryRecord = null;
+
+    try
+    {
+        var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
+
+        if (inventoryRecord != null)
         {
-            if (string.IsNullOrWhiteSpace(Sku) || Quantity <= 0 || Size < 36 || Size > 45 || Size != decimal.Truncate(Size))
+            if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
             {
-                TempData["Error"] = "Please enter a valid quantity.";
+                TempData["Error"] = "The resulting stock quantity is too large.";
                 return RedirectToAction("Index");
             }
-
-            if (!Sku.StartsWith("SHOE-", StringComparison.OrdinalIgnoreCase))
+            inventoryRecord.quantity_in_stock += Quantity;
+        }
+        else
+        {
+            newInventoryRecord = new ShoeInventory
             {
-                TempData["Error"] = "The product SKU format is invalid.";
-                return RedirectToAction("Index");
-            }
+                shoe_id = targetShoeId,
+                size = sizeDecimal,
+                quantity_in_stock = Quantity
+            };
+            await _context.ShoeInventories.AddAsync(newInventoryRecord);
+        }
 
-            string idPart = Sku[5..];
-            if (!int.TryParse(idPart, out int targetShoeId))
-            {
-                TempData["Error"] = "The product SKU format is invalid.";
-                return RedirectToAction("Index");
-            }
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+        TempData["Success"] = "Stock updated successfully.";
+    }
+    catch (DbUpdateException ex) when (
+        newInventoryRecord != null &&
+        ex.GetBaseException() is MySqlException { Number: 1062 })
+    {
+        await transaction.RollbackAsync();
+        _context.Entry(newInventoryRecord).State = EntityState.Detached;
 
-            // FIX 2: Direktang gamitin ang `Size` (dahil decimal na ito sa parameter) o i-convert nang tama kung kinakailangan
-            decimal sizeDecimal = Size; 
-
-            if (!await _context.ShoeCatalogs.AnyAsync(s => s.shoe_id == targetShoeId))
-            {
-                TempData["Error"] = "The selected product does not exist.";
-                return RedirectToAction("Index");
-            }
-
-            var inventoryRecord = await _context.ShoeInventories
-                .FirstOrDefaultAsync(x => x.shoe_id == targetShoeId && x.size == sizeDecimal);
-
-            if (inventoryRecord != null)
-            {
-                if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
-                {
-                    TempData["Error"] = "The resulting stock quantity is too large.";
-                    return RedirectToAction("Index");
-                }
-                inventoryRecord.quantity_in_stock += Quantity;
-                _context.ShoeInventories.Update(inventoryRecord);
-            }
-            else
-            {
-                var newInventory = new ShoeInventory
-                {
-                    shoe_id = targetShoeId,
-                    size = sizeDecimal, // FIX 3: Ginamit ang `sizeDecimal` sa halip na `sizeStr`
-                    quantity_in_stock = Quantity,
-                };
-                await _context.ShoeInventories.AddAsync(newInventory);
-            }
-
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Stock updated successfully.";
-
+        await using var retryTransaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+        var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
+        if (inventoryRecord == null)
+        {
+            await retryTransaction.RollbackAsync();
+            TempData["Error"] = "Another update was in progress for this item. Please try again.";
             return RedirectToAction("Index");
+        }
+
+        if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
+        {
+            await retryTransaction.RollbackAsync();
+            TempData["Error"] = "The resulting stock quantity is too large.";
+            return RedirectToAction("Index");
+        }
+
+        inventoryRecord.quantity_in_stock += Quantity;
+        await _context.SaveChangesAsync();
+        await retryTransaction.CommitAsync();
+        TempData["Success"] = "Stock updated successfully.";
+    }
+    catch (DbUpdateException)
+    {
+        await transaction.RollbackAsync();
+        TempData["Error"] = "Another update was in progress for this item. Please try again.";
+    }
+
+    return RedirectToAction("Index");
+}
+
+        public async Task<IActionResult> ReorderPoints(string? status, string? q, int page = 1)
+        {
+            var rows = await _reorderPointService.GetRowsAsync();
+            var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "All" : status.Trim();
+            var normalizedSearch = q?.Trim();
+            var filtered = FilterAndSortRopRows(rows, normalizedStatus, normalizedSearch);
+
+            int pageSize = 15;
+            int totalPages = Math.Max(1, (int)Math.Ceiling(filtered.Count / (double)pageSize));
+            page = Math.Clamp(page, 1, totalPages);
+
+            ViewBag.SearchTerm = normalizedSearch ?? string.Empty;
+            ViewBag.TotalFiltered = filtered.Count;
+            ViewBag.PageSize = pageSize;
+
+            var vm = new RopDashboardViewModel
+            {
+                Rows = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
+                CurrentStatus = normalizedStatus,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                OutOfStockCount = rows.Count(r => r.Status == AdminAlertStatuses.OutOfStock),
+                ReorderNowCount = rows.Count(r => r.Status == AdminAlertStatuses.ReorderNow),
+                HealthyCount = rows.Count(r => r.Status == AdminAlertStatuses.Healthy),
+                NoDataCount = rows.Count(r => r.Status == AdminAlertStatuses.NoDemandData),
+                LookbackDays = ReorderPointService.RopLookbackDays,
+                LeadTimeDays = ReorderPointService.RopLeadTimeDays,
+                ServiceZ = ReorderPointService.RopServiceZ
+            };
+
+            return View(vm);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportReorderPoints(string? status, string? q)
+        {
+            var rows = await _reorderPointService.GetRowsAsync();
+            var normalizedStatus = string.IsNullOrWhiteSpace(status) ? "All" : status.Trim();
+            var filtered = FilterAndSortRopRows(rows, normalizedStatus, q?.Trim());
+
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("inventory_id,model_name,brand,size,quantity_in_stock,avg_daily_demand,safety_stock,reorder_point,status");
+            foreach (var row in filtered)
+            {
+                csv.Append(row.InventoryId).Append(',')
+                    .Append(CsvField(row.ModelName)).Append(',')
+                    .Append(CsvField(row.Brand)).Append(',')
+                    .Append(row.Size.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                    .Append(row.Stock).Append(',')
+                    .Append(row.AvgDailyDemand.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                    .Append(row.SafetyStock).Append(',')
+                    .Append(row.ReorderPoint).Append(',')
+                    .Append(CsvField(row.Status)).AppendLine();
+            }
+
+            return File(
+                new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(csv.ToString()),
+                "text/csv; charset=utf-8",
+                "reorder-points.csv");
+        }
+
+        private static List<RopRowViewModel> FilterAndSortRopRows(
+            IEnumerable<RopRowViewModel> rows,
+            string status,
+            string? search)
+        {
+            var filtered = rows.Where(r =>
+                    status == "All" || r.Status == status)
+                .Where(r => string.IsNullOrWhiteSpace(search) ||
+                            r.ModelName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                            r.Brand.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                            r.Size.ToString("0.#", System.Globalization.CultureInfo.CurrentCulture)
+                                .Contains(search, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            int Priority(string value) => value switch
+            {
+                AdminAlertStatuses.OutOfStock => 0,
+                AdminAlertStatuses.ReorderNow => 1,
+                AdminAlertStatuses.Healthy => 2,
+                _ => 3
+            };
+
+            return filtered.OrderBy(r => Priority(r.Status))
+                .ThenBy(r => r.Stock)
+                .ToList();
+        }
+
+        private static string CsvField(string? value)
+        {
+            var escaped = (value ?? string.Empty).Replace("\"", "\"\"");
+            return $"\"{escaped}\"";
         }
     }
 }

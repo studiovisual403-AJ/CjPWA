@@ -1,3 +1,5 @@
+using SmartOrderSystem.Helpers;
+
 namespace SmartOrderSystem.Models.ViewModels
 {
     public class CartViewModel
@@ -6,7 +8,7 @@ namespace SmartOrderSystem.Models.ViewModels
         public decimal Subtotal { get; set; }
         public decimal ShippingFee { get; set; }
         public decimal Total => Subtotal + ShippingFee;
-        public decimal FreeShippingThreshold { get; set; } = 2000m;
+        public decimal FreeShippingThreshold => ShippingHelper.FreeShippingThreshold;
         public decimal AmountAwayFromFreeShipping => Math.Max(0, FreeShippingThreshold - Subtotal);
         public double FreeShippingProgressPercent => (double)Math.Min(100, (Subtotal / FreeShippingThreshold) * 100);
         public bool QualifiesForFreeShipping => Subtotal >= FreeShippingThreshold;

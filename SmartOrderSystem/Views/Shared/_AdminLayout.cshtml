@@ -121,10 +121,7 @@
             </div>
 
             <div class="topbar-right">
-                <a class="topbar-icon-btn" title="Notifications" aria-label="Notifications" asp-controller="AdminAccount" asp-action="Notifications">
-                    <i class="ti ti-bell" aria-hidden="true"></i>
-                    <span class="notif-dot" aria-hidden="true"></span>
-                </a>
+                @await Component.InvokeAsync("AdminNotificationBell")
                 <a class="topbar-icon-btn" title="Settings" aria-label="Settings" asp-controller="AdminAccount" asp-action="Settings">
                     <i class="ti ti-settings" aria-hidden="true"></i>
                 </a>
@@ -154,6 +151,7 @@
 
 <script src="~/js/admin-sidebar.js" asp-append-version="true"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/admin-notification-bell.js" asp-append-version="true"></script>
 @RenderSection("Scripts", required: false)
 
 </body>

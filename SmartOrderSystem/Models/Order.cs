@@ -53,6 +53,10 @@ namespace SmartOrderSystem.Models
         [Column("updated_at")]
         public DateTime? updated_at { get; set; }
 
+        [Column("checkout_request_key")]
+        [MaxLength(36)]
+        public string? checkout_request_key { get; set; }
+
         // Navigation
         [ForeignKey("customer_id")]
         public Customer? Customer { get; set; }

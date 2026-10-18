@@ -24,6 +24,7 @@ namespace SmartOrderSystem.ViewModels
         public string? PaymentMethod { get; set; }
         public bool PaymentCompleted { get; set; }
         public int? CreatedOrderId { get; set; }
+        public Guid? CheckoutRequestKey { get; set; }
     }
 
     public class CheckoutOrderSummaryViewModel
@@ -73,6 +74,7 @@ namespace SmartOrderSystem.ViewModels
     public class CheckoutPaymentViewModel
     {
         public string PaymentMethod { get; set; } = "Cash on Delivery";
+        public Guid CheckoutRequestKey { get; set; }
         public CheckoutOrderSummaryViewModel OrderSummary { get; set; } = new();
     }
 

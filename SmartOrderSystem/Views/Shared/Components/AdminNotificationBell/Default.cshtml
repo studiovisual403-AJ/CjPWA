@@ -1,0 +1,115 @@
+@model SmartOrderSystem.Services.AdminAlertSummaryDto
+@{
+    var orderDetailsUrl = Url.Action("Details", "OrdersManagement", new { id = "__id__" }) ?? "/OrdersManagement/Details/__id__";
+    var reservationDetailsUrl = Url.Action("Details", "ReservationManagement", new { id = "__id__" }) ?? "/ReservationManagement/Details/__id__";
+    var reorderUrl = Url.Action("ReorderPoints", "Inventory") ?? "/Inventory/ReorderPoints";
+}
+
+<div class="dropdown nb-root"
+     data-summary-url="@Url.Action("Summary", "AdminAlerts")"
+     data-order-details-url="@orderDetailsUrl"
+     data-reservation-details-url="@reservationDetailsUrl"
+     data-reorder-url="@reorderUrl">
+    <button class="topbar-icon-btn nb-trigger dropdown-toggle"
+            type="button"
+            id="adminNotificationBell"
+            data-bs-toggle="dropdown"
+            data-bs-auto-close="outside"
+            aria-expanded="false"
+            aria-label="Admin alerts">
+        <i class="ti ti-bell" aria-hidden="true"></i>
+        <span class="nb-badge" data-nb-badge hidden>@Model.AttentionCount</span>
+    </button>
+
+    <div class="dropdown-menu dropdown-menu-end nb-menu" aria-labelledby="adminNotificationBell">
+        <div class="nb-menu-head">
+            <strong>Admin alerts</strong>
+            <span class="nb-attention-count">@Model.AttentionCount need attention</span>
+        </div>
+
+        @if (Model.AttentionCount == 0)
+        {
+            <p class="nb-nothing">Nothing needs attention.</p>
+        }
+
+        <section class="nb-section" aria-label="Pending orders">
+            <h2>Orders <span class="nb-count">@Model.PendingOrderCount</span></h2>
+            <ul class="nb-list" data-nb-list="orders">
+                @foreach (var item in Model.PendingOrders)
+                {
+                    <li class="nb-item @(item.IsOverdue ? "nb-overdue" : "")">
+                        <a href="@orderDetailsUrl.Replace("__id__", item.OrderId.ToString())">
+                            <span><strong>Order #@item.OrderId</strong> · @item.CustomerName</span>
+                            <small>Total @item.Total.ToString("0.00") · @item.AgeHours.ToString("0")h ago@(item.IsOverdue ? " · OVERDUE" : "")</small>
+                        </a>
+                    </li>
+                }
+            </ul>
+            @if (Model.PendingOrders.Count == 0)
+            {
+                <p class="nb-empty" data-nb-empty="orders">No pending orders.</p>
+            }
+            <a class="nb-section-link" asp-controller="OrdersManagement" asp-action="Index">View orders</a>
+        </section>
+
+        <section class="nb-section" aria-label="Pending reservations">
+            <h2>Reservations <span class="nb-count">@Model.PendingReservationCount</span></h2>
+            <ul class="nb-list" data-nb-list="reservations">
+                @foreach (var item in Model.PendingReservations)
+                {
+                    <li class="nb-item @(item.IsOverdue ? "nb-overdue" : "")">
+                        <a href="@reservationDetailsUrl.Replace("__id__", item.ReservationId.ToString())">
+                            <span><strong>Reservation #@item.ReservationId</strong> · @item.CustomerName</span>
+                            <small>Qty @item.Quantity · @item.AgeHours.ToString("0")h ago@(item.IsOverdue ? " · OVERDUE" : "")</small>
+                        </a>
+                    </li>
+                }
+            </ul>
+            @if (Model.PendingReservations.Count == 0)
+            {
+                <p class="nb-empty" data-nb-empty="reservations">No pending reservations.</p>
+            }
+            <a class="nb-section-link" asp-controller="ReservationManagement" asp-action="Index">View reservations</a>
+        </section>
+
+        <section class="nb-section" aria-label="Recent cancellations">
+            <h2>Cancelled <span class="nb-count">@Model.CancellationCount</span></h2>
+            <ul class="nb-list" data-nb-list="cancellations">
+                @foreach (var item in Model.RecentCancellations)
+                {
+                    <li class="nb-item">
+                        <a href="@orderDetailsUrl.Replace("__id__", item.OrderId.ToString())">
+                            <span><strong>Order #@item.OrderId</strong> · @(string.IsNullOrWhiteSpace(item.CancellationReason) ? "No reason recorded" : item.CancellationReason)</span>
+                            <small>@item.UpdatedAt.ToString("g")</small>
+                        </a>
+                    </li>
+                }
+            </ul>
+            @if (Model.RecentCancellations.Count == 0)
+            {
+                <p class="nb-empty" data-nb-empty="cancellations">No recent cancellations.</p>
+            }
+            <a class="nb-section-link" asp-controller="OrdersManagement" asp-action="Index" asp-route-statusFilter="@SmartOrderSystem.Services.AdminAlertStatuses.Cancelled">View cancelled orders</a>
+        </section>
+
+        <section class="nb-section" aria-label="Low stock alerts">
+            <h2>Low Stock <span class="nb-count">@Model.RopAlertCount</span></h2>
+            <ul class="nb-list" data-nb-list="rop">
+                @foreach (var item in Model.RopAlerts)
+                {
+                    <li class="nb-item @(item.Status == SmartOrderSystem.Services.AdminAlertStatuses.OutOfStock ? "nb-overdue" : "")">
+                        <a asp-controller="Inventory" asp-action="ReorderPoints" asp-route-status="@item.Status">
+                            <span><strong>@item.ModelName</strong> · Size @item.Size.ToString("0.#")</span>
+                            <small>@item.Status · Stock @item.Stock / ROP @item.ReorderPoint</small>
+                        </a>
+                    </li>
+                }
+            </ul>
+            @if (Model.RopAlerts.Count == 0)
+            {
+                <p class="nb-empty" data-nb-empty="rop">No low stock alerts.</p>
+            }
+            <a class="nb-section-link" asp-controller="Inventory" asp-action="ReorderPoints">View reorder points</a>
+        </section>
+    </div>
+</div>

@@ -62,12 +62,12 @@ namespace SmartOrderSystem.Controllers
                     Color = item.Color,
                     ImageUrl = item.Shoe.image_path,
                     Quantity = item.Quantity,
-                    Price = PromotionHelper.GetEffectivePrice(item.Shoe.default_price, PromotionHelper.GetCurrentPromotion(item.Shoe))
+                    Price = PromotionHelper.GetEffectivePrice(item.Shoe)
                 });
             }
 
             vm.Subtotal = vm.Items.Sum(i => i.LineTotal);
-            vm.ShippingFee = vm.QualifiesForFreeShipping ? 0 : ShippingHelper.ShippingFee;
+            vm.ShippingFee = ShippingHelper.CalculateTotals(vm.Subtotal).ShippingFee;
 
             return View(vm);
         }
@@ -98,7 +98,7 @@ namespace SmartOrderSystem.Controllers
         return Json(new { success = false, message = "Not enough stock available." });
 
     var shoe = inventory.ShoeCatalog;
-    var sizeLabel = inventory.size.ToString("0.#");
+    var sizeLabel = inventory.size.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
     var color = shoe.color ?? "";
 
     var existing = await _context.CartItems.FirstOrDefaultAsync(c =>
@@ -121,7 +121,7 @@ namespace SmartOrderSystem.Controllers
             Size = sizeLabel,
             Color = color,
             Quantity = quantity,
-            PriceAtAddTime = PromotionHelper.GetEffectivePrice(shoe.default_price, PromotionHelper.GetCurrentPromotion(shoe)),
+            PriceAtAddTime = PromotionHelper.GetEffectivePrice(shoe),
             CreatedAt = DateTime.Now
         });
     }
@@ -144,8 +144,15 @@ namespace SmartOrderSystem.Controllers
             var item = await _context.CartItems.FirstOrDefaultAsync(c => c.CartItemId == cartItemId && c.CustomerId == customerId);
             if (item == null) return NotFound();
 
-            var requestedQuantity = quantity < 1 ? 1 : quantity;
-            if (!decimal.TryParse(item.Size, out var size)) return RedirectToAction("Index");
+            if (quantity <= 0)
+            {
+                TempData["Error"] = "Quantity must be at least 1.";
+                return RedirectToAction("Index");
+            }
+
+            var requestedQuantity = quantity;
+            if (!decimal.TryParse(item.Size, System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out var size)) return RedirectToAction("Index");
 
             var available = await _context.ShoeInventories
                 .Where(i => i.shoe_id == item.ShoeId && i.size == size)

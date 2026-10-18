@@ -2,9 +2,25 @@
 @{
     ViewData["Title"] = "Manage Promotion";
     var product = ViewData["Product"] as SmartOrderSystem.Models.ShoeCatalog;
+    var inPeriod = DateTime.Today >= Model.start_date.Date && DateTime.Today <= Model.end_date.Date;
+    var canSend = Model.promotion_id != 0 && Model.status == "Active" && inPeriod;
 }
 
 <div class="promo-container">
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert-success" role="status">
+            <i class="ti ti-check" aria-hidden="true"></i>
+            <span>@TempData["Success"]</span>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert-error" role="alert">
+            <i class="ti ti-alert-circle" aria-hidden="true"></i>
+            <span>@TempData["Error"]</span>
+        </div>
+    }
 
     <a asp-action="Index" class="promo-back-link">
         <i class="ti ti-arrow-left"></i> Back to Product Catalog
@@ -64,7 +80,8 @@
 
                 <div class="promo-field">
                     <label>Discount Value (%) <span class="req">*</span></label>
-                    <input asp-for="discount_percentage" type="number" step="0.01" min="0" max="100" class="promo-input" id="discountValue" required />
+                    <input asp-for="discount_percentage" type="number" step="0.01" min="0" max="100" class="promo-input" id="discountValue" required
+       value="@Model.discount_percentage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
                     <span asp-validation-for="discount_percentage" class="promo-error"></span>
                 </div>
 
@@ -138,6 +155,34 @@
                 <button type="submit" class="promo-btn promo-btn-danger-solid">Save Promotion</button>
             </div>
         </form>
+
+        @if (Model.promotion_id != 0)
+        {
+            <div class="promo-send-box">
+                <div>
+                    <h5 class="promo-section-title">Send by Email</h5>
+                    <p class="promo-send-note">
+                        Sends the saved promotion to customers who opted in to receive promotions.
+                        The email uses the saved details, so save your changes first.
+                    </p>
+                    @if (!canSend)
+                    {
+                        <p class="promo-send-warning">
+                            Sending is available only when the status is Active and today falls within the start and end dates.
+                        </p>
+                    }
+                </div>
+                <form asp-action="SendPromotion" asp-route-id="@Model.promotion_id" method="post"
+                      onsubmit="return confirm('Send this promotion by email to all opted-in customers? This cannot be undone.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" id="sendPromoBtn" class="promo-btn promo-btn-outline-danger"
+                            disabled="@(!canSend)"
+                            title="@(canSend ? null : "Set the status to Active and save, and make sure today is within the dates")">
+                        Send Promotion
+                    </button>
+                </form>
+            </div>
+        }
     </div>
 </div>
 
@@ -166,10 +211,27 @@
             discountValueInput.addEventListener('input', updatePreview);
             updatePreview();
         })();
+
+        (function () {
+            const promoForm = document.getElementById('promoForm');
+            const sendBtn = document.getElementById('sendPromoBtn');
+            if (!promoForm || !sendBtn || sendBtn.disabled) return;
+
+            function lockSend() {
+                sendBtn.disabled = true;
+                sendBtn.title = 'Save your changes first';
+            }
+
+            promoForm.addEventListener('input', lockSend);
+            promoForm.addEventListener('change', lockSend);
+        })();
     </script>
 
     <style>
         .promo-container { max-width: 900px; }
+        .alert-success, .alert-error { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
         .promo-back-link { display: inline-flex; align-items: center; gap: 6px; color: #dc2626; text-decoration: none; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
         .promo-back-link:hover { text-decoration: underline; }
 
@@ -231,5 +293,13 @@
         .promo-btn-secondary:hover { background: #f1f5f9; }
         .promo-btn-danger-solid { background: #dc2626; color: #fff; border: none; }
         .promo-btn-danger-solid:hover { background: #b91c1c; }
+        .promo-btn-outline-danger { background: #fff; color: #dc2626; border: 1px solid #dc2626; }
+        .promo-btn-outline-danger:hover:not(:disabled) { background: #fef2f2; }
+        .promo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .promo-send-box { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 20px; }
+        .promo-send-box .promo-section-title { margin-bottom: 6px; }
+        .promo-send-note { font-size: 12px; color: #64748b; margin: 0; max-width: 520px; }
+        .promo-send-warning { font-size: 12px; color: #92400e; margin: 6px 0 0 0; }
     </style>
 }

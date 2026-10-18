@@ -86,7 +86,7 @@
         <div class="sd-kpi-card">
             <div class="sd-kpi-icon green"><i class="ti ti-chart-line"></i></div>
             <div class="sd-kpi-label">TOTAL SALES</div>
-            <div class="sd-kpi-value" id="kpiTotalSales">@Model.TotalSales.ToString("C0")</div>
+            <div class="sd-kpi-value" id="kpiTotalSales">@Model.TotalSales.ToString("₱#,##0")</div>
             <div class="sd-kpi-growth @(Model.TotalSalesGrowth >= 0 ? "up" : "down")" id="kpiTotalSalesGrowth">
                 <i class="ti @(Model.TotalSalesGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
                 @Math.Abs(Model.TotalSalesGrowth)% from last month
@@ -116,7 +116,7 @@
         <div class="sd-kpi-card">
             <div class="sd-kpi-icon orange"><i class="ti ti-chart-bar"></i></div>
             <div class="sd-kpi-label">AVERAGE ORDER VALUE</div>
-            <div class="sd-kpi-value" id="kpiAvgOrderValue">@Model.AverageOrderValue.ToString("C0")</div>
+            <div class="sd-kpi-value" id="kpiAvgOrderValue">@Model.AverageOrderValue.ToString("₱#,##0")</div>
             <div class="sd-kpi-growth @(Model.AverageOrderValueGrowth >= 0 ? "up" : "down")" id="kpiAvgOrderValueGrowth">
                 <i class="ti @(Model.AverageOrderValueGrowth >= 0 ? "ti-arrow-up-right" : "ti-arrow-down-right")"></i>
                 @Math.Abs(Model.AverageOrderValueGrowth)% from last month
@@ -166,6 +166,39 @@
             </div>
             <div class="sd-legend" id="statusLegend"></div>
         </div>
+    </div>
+
+    <div class="sr-analytics-grid">
+        <div class="sd-card sr-forecast-card">
+            <div class="sd-card-header">
+                <h3 id="srForecastLabel"><i class="ti ti-chart-arrows-vertical"></i> <span>@(Model.NextMonthForecastLabel is null ? "Next-Month Forecast" : $"Forecast for {Model.NextMonthForecastLabel}")</span></h3>
+            </div>
+            <div class="sr-forecast-value" id="srNextMonthForecast">
+                @(Model.NextMonthForecast.HasValue ? "₱" + Model.NextMonthForecast.Value.ToString("N0") : "Not enough monthly data")
+            </div>
+            <p class="sr-analytics-note">Three-month simple moving average</p>
+        </div>
+
+        <section class="sd-card sr-abc-card" aria-labelledby="srAbcHeading">
+            <div class="sd-card-header">
+                <h3 id="srAbcHeading"><i class="ti ti-chart-dots-3"></i> ABC Analysis</h3>
+            </div>
+            <div class="sr-abc-summary" id="srAbcSummary"></div>
+            <div class="sr-abc-table-wrap">
+                <table class="sr-abc-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Revenue</th>
+                            <th>Share %</th>
+                            <th>Cumulative %</th>
+                            <th>Class</th>
+                        </tr>
+                    </thead>
+                    <tbody id="srAbcTableBody"></tbody>
+                </table>
+            </div>
+        </section>
     </div>
 
     <!-- TABLES ROW -->

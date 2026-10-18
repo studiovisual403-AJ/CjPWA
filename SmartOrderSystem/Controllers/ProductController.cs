@@ -14,12 +14,15 @@ namespace SmartOrderSystem.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly INotificationService _notificationService;
+        private readonly PromotionMailer _promotionMailer;
 
-        public ProductController(ApplicationDbContext context, IWebHostEnvironment environment, INotificationService notificationService) : base(context)
+        public ProductController(ApplicationDbContext context, IWebHostEnvironment environment,
+            INotificationService notificationService, PromotionMailer promotionMailer) : base(context)
         {
             _context = context;
             _environment = environment;
             _notificationService = notificationService;
+            _promotionMailer = promotionMailer;
         }
 
         public const long MaxUploadFileSizeInBytes = 5 * 1024 * 1024;
@@ -44,7 +47,7 @@ namespace SmartOrderSystem.Controllers
 
             var products = await query.Include(p => p.Images).OrderBy(p => p.shoe_id)
                 .Include(p => p.Promotions)
-                .OrderBy(p => p.shoe_id) 
+                .OrderBy(p => p.shoe_id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -407,6 +410,7 @@ namespace SmartOrderSystem.Controllers
                 .OrderByDescending(p => p.promotion_id)
                 .FirstOrDefaultAsync();
             ViewData["Product"] = product;
+            ViewData["RecipientCount"] = await _promotionMailer.CountRecipientsAsync();
 
             return View(promotion ?? new ProductPromotion
             {
@@ -433,6 +437,7 @@ namespace SmartOrderSystem.Controllers
             if (!ModelState.IsValid)
             {
                 ViewData["Product"] = product;
+                ViewData["RecipientCount"] = await _promotionMailer.CountRecipientsAsync();
                 return View(model);
             }
 
@@ -465,11 +470,37 @@ namespace SmartOrderSystem.Controllers
                     string.IsNullOrWhiteSpace(model.campaign_name) ? "New Promotion" : model.campaign_name,
                     $"Get {model.discount_percentage}% OFF on {product.brand} {product.model_name}! Valid until {model.end_date:MMMM dd, yyyy}.",
                     promotionId: model.promotion_id,
-                    shoeId: model.shoe_id);
+                    shoeId: model.shoe_id,
+                    onlyPromoOptIn: true);
             }
 
             TempData["Success"] = "Promotion saved successfully.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Promotion), new { id = model.shoe_id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendPromotion(int id)
+        {
+            var promotion = await _context.ProductPromotions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.promotion_id == id);
+            if (promotion == null) return NotFound();
+
+            var today = DateTime.Today;
+            var canSend = promotion.status == "Active"
+                          && today >= promotion.start_date.Date
+                          && today <= promotion.end_date.Date;
+
+            if (!canSend)
+            {
+                TempData["Error"] = "This promotion can't be sent. It must be Active and today must fall within its start and end dates.";
+                return RedirectToAction(nameof(Promotion), new { id = promotion.shoe_id });
+            }
+
+            var result = await _promotionMailer.SendAsync(id);
+            TempData[result.Success ? "Success" : "Error"] = result.Message;
+            return RedirectToAction(nameof(Promotion), new { id = promotion.shoe_id });
         }
 
         [HttpPost]

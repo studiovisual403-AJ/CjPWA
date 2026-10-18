@@ -66,7 +66,7 @@ namespace SmartOrderSystem.Controllers
                     Brand = s.brand,
                     Category = s.category,
                     OriginalPrice = s.default_price,
-                    Price = PromotionHelper.GetEffectivePrice(s.default_price, promotion),
+                    Price = PromotionHelper.GetEffectivePrice(s),
                     DiscountPercentage = promotion?.discount_percentage,
                     ImagePath = s.image_path,
                     TotalStock = _context.ShoeInventories.Where(i => i.shoe_id == s.shoe_id).Sum(i => i.quantity_in_stock)
@@ -91,8 +91,8 @@ namespace SmartOrderSystem.Controllers
             const int pageSize = 8;
 
             var query = _context.ShoeCatalogs
-            .Where(s => s.status == "Active")
-            .AsQueryable();
+                .Where(s => s.status == "Active")
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(category))
             {
@@ -123,43 +123,44 @@ namespace SmartOrderSystem.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-                var products = productEntities.Select(s =>
+            var products = productEntities.Select(s =>
+            {
+                var promotion = PromotionHelper.GetCurrentPromotion(s);
+                return new ProductCardViewModel
                 {
-                    var promotion = PromotionHelper.GetCurrentPromotion(s);
-                    return new ProductCardViewModel
-                    {
-                        ShoeId = s.shoe_id,
-                        ModelName = s.model_name,
-                        Brand = s.brand,
-                        Category = s.category,
-                        OriginalPrice = s.default_price,
-                        Price = PromotionHelper.GetEffectivePrice(s.default_price, promotion),
-                        DiscountPercentage = promotion?.discount_percentage,
-                        ImagePath = s.image_path,
-                        TotalStock = _context.ShoeInventories.Where(i => i.shoe_id == s.shoe_id).Sum(i => i.quantity_in_stock)
-                    };
-                }).ToList();
-
-                var vm = new ProductsViewModel
-                {
-                    Products = products,
-                    SelectedCategory = category,
-                    SearchString = searchString,
-                    Sort = sort,
-                    CurrentPage = page,
-                    TotalPages = totalPages,
-                    TotalItems = totalItems,
-                    PageSize = pageSize
+                    ShoeId = s.shoe_id,
+                    ModelName = s.model_name,
+                    Brand = s.brand,
+                    Category = s.category,
+                    OriginalPrice = s.default_price,
+                    Price = PromotionHelper.GetEffectivePrice(s),
+                    DiscountPercentage = promotion?.discount_percentage,
+                    ImagePath = s.image_path,
+                    TotalStock = _context.ShoeInventories.Where(i => i.shoe_id == s.shoe_id).Sum(i => i.quantity_in_stock)
                 };
+            }).ToList();
 
-                return View(vm);
-            }
+            var vm = new ProductsViewModel
+            {
+                Products = products,
+                SelectedCategory = category,
+                SearchString = searchString,
+                Sort = sort,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                TotalItems = totalItems,
+                PageSize = pageSize
+            };
+
+            return View(vm);
+        }
 
         // 3. Product Details Page
         public async Task<IActionResult> Details(int id)
         {
-    var shoe = await _context.ShoeCatalogs
+            var shoe = await _context.ShoeCatalogs
                 .Include(s => s.Images)
+                .Include(s => s.Promotions)
                 .FirstOrDefaultAsync(s => s.shoe_id == id);
 
             if (shoe == null)
@@ -176,7 +177,6 @@ namespace SmartOrderSystem.Controllers
                 })
                 .ToListAsync();
 
-            // ⬇️ IDINAGDAG DITO
             foreach (var s in sizes)
             {
                 s.Cm = ShoeSizeConverter.ToCm(s.Size);
@@ -204,7 +204,7 @@ namespace SmartOrderSystem.Controllers
                 Category = shoe.category,
                 Color = shoe.color,
                 OriginalPrice = shoe.default_price,
-                Price = PromotionHelper.GetEffectivePrice(shoe.default_price, PromotionHelper.GetCurrentPromotion(shoe)),
+                Price = PromotionHelper.GetEffectivePrice(shoe),
                 DiscountPercentage = PromotionHelper.GetCurrentPromotion(shoe)?.discount_percentage,
                 ImagePaths = images,
                 Sizes = sizes,
@@ -213,7 +213,7 @@ namespace SmartOrderSystem.Controllers
             };
 
             return View(vm);
-}
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]

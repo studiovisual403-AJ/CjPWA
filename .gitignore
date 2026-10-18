@@ -6,6 +6,12 @@
 # dotenv files
 .env
 
+# Database backups and dumps may contain customer data and password hashes.
+*.sql
+*.sql.gz
+*.dump
+*.bak
+
 # User-specific files
 *.rsuser
 *.suo
