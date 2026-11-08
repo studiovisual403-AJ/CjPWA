@@ -39,14 +39,14 @@ namespace SmartOrderSystem.Controllers
             var admin = _context.Admins.FirstOrDefault(a => a.email == model.Email);
             var passwordValid = false;
 
-            if (admin!= null)
+            if (admin != null)
             {
                 try { passwordValid = BCrypt.Net.BCrypt.Verify(model.Password, admin.password_hash); }
                 catch (ArgumentException) { passwordValid = false; }
 
             }
 
-            if (admin!= null && passwordValid)
+            if (admin != null && passwordValid)
             {
                 HttpContext.Session.SetString("AdminUser", admin.email);
                 HttpContext.Session.SetString("UserType", "Admin");

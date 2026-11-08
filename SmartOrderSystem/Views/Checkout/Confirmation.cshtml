@@ -2,7 +2,7 @@
 
 @{
     Layout = "~/Views/Shared/_ShopLayout.cshtml";
-    
+
     ViewData["Title"] = "Order Confirmed";
 }
 
@@ -76,6 +76,10 @@
                         </div>
                     </div>
                     <hr />
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Shipping Fee</span>
+                        <span>@(Model.ShippingFee == 0 ? "FREE" : $"₱{Model.ShippingFee:N2}")</span>
+                    </div>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="fw-bold">Total</span>
                         <span class="fw-bold text-danger fs-5">₱@Model.TotalAmount.ToString("N2")</span>

@@ -147,90 +147,90 @@ namespace SmartOrderSystem.Controllers
         }
 
         [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> UpdateStatus(int id, string status)
-{
-    bool approving = false;
-
-    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-
-    try
-    {
-        // 1. Lock ang reservation row muna (iwas double-approve kapag dalawang admin ang sabay)
-        var reservation = await _context.LockReservationAsync(id);
-        if (reservation == null)
-            return NotFound();
-
-        approving = string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase)
-                    && reservation.status == "Pending";
-        var cancelling = string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase)
-                         && (reservation.status == "Pending" || reservation.status == "Approved");
-
-        if (!approving && !cancelling)
-            return BadRequest("That reservation status update is not allowed.");
-
-        if (approving && reservation.expires_at.HasValue && reservation.expires_at.Value <= DateTime.Now)
-            return BadRequest("This reservation has expired.");
-
-        // 2. Lock ang inventory row
-        var lockedInventory = await _context.LockInventoryRowsAsync(new[] { reservation.inventory_id });
-        lockedInventory.TryGetValue(reservation.inventory_id, out var inventory);
-
-        if (approving)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStatus(int id, string status)
         {
-            if (reservation.quantity <= 0 || inventory == null)
-                return BadRequest("The reservation has invalid inventory or quantity data.");
+            bool approving = false;
 
-            var pendingReservationQuantity = await _context.GetPendingReservationQuantityAsync(
-                reservation.inventory_id, DateTime.Now);
-            if (reservation.quantity > inventory.quantity_in_stock ||
-                pendingReservationQuantity > inventory.quantity_in_stock)
-                return BadRequest($"Insufficient stock. Available: {Math.Max(0, inventory.quantity_in_stock)}, Required: {reservation.quantity}");
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-            inventory.quantity_in_stock -= reservation.quantity;
-            reservation.status = "Approved";
-            reservation.approved_at = DateTime.Now;
-            reservation.approved_by = await GetCurrentAdminIdAsync();
+            try
+            {
+                // 1. Lock ang reservation row muna (iwas double-approve kapag dalawang admin ang sabay)
+                var reservation = await _context.LockReservationAsync(id);
+                if (reservation == null)
+                    return NotFound();
+
+                approving = string.Equals(status, "Approved", StringComparison.OrdinalIgnoreCase)
+                            && reservation.status == "Pending";
+                var cancelling = string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase)
+                                 && (reservation.status == "Pending" || reservation.status == "Approved");
+
+                if (!approving && !cancelling)
+                    return BadRequest("That reservation status update is not allowed.");
+
+                if (approving && reservation.expires_at.HasValue && reservation.expires_at.Value <= DateTime.Now)
+                    return BadRequest("This reservation has expired.");
+
+                // 2. Lock ang inventory row
+                var lockedInventory = await _context.LockInventoryRowsAsync(new[] { reservation.inventory_id });
+                lockedInventory.TryGetValue(reservation.inventory_id, out var inventory);
+
+                if (approving)
+                {
+                    if (reservation.quantity <= 0 || inventory == null)
+                        return BadRequest("The reservation has invalid inventory or quantity data.");
+
+                    var pendingReservationQuantity = await _context.GetPendingReservationQuantityAsync(
+                        reservation.inventory_id, DateTime.Now);
+                    if (reservation.quantity > inventory.quantity_in_stock ||
+                        pendingReservationQuantity > inventory.quantity_in_stock)
+                        return BadRequest($"Insufficient stock. Available: {Math.Max(0, inventory.quantity_in_stock)}, Required: {reservation.quantity}");
+
+                    inventory.quantity_in_stock -= reservation.quantity;
+                    reservation.status = "Approved";
+                    reservation.approved_at = DateTime.Now;
+                    reservation.approved_by = await GetCurrentAdminIdAsync();
+                }
+                else
+                {
+                    if (reservation.status == "Approved" && inventory != null)
+                        inventory.quantity_in_stock += reservation.quantity;
+
+                    reservation.status = "Cancelled";
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync(); // dito nare-release ang locks
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Could not update the reservation right now. Please try again.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (approving)
+            {
+                var info = await _context.Reservations
+                    .AsNoTracking()
+                    .Where(r => r.reservation_id == id)
+                    .Select(r => new { r.customer_id, ShoeName = r.ShoeInventory!.ShoeCatalog!.model_name })
+                    .FirstOrDefaultAsync();
+
+                if (info != null)
+                {
+                    await _notificationService.NotifyCustomerAsync(
+                        info.customer_id,
+                        "ReservationConfirmed",
+                        "Reservation Confirmed",
+                        $"Your reservation for {info.ShoeName ?? "your reserved item"} has been confirmed.");
+                }
+            }
+
+            TempData["Success"] = "Reservation status updated successfully.";
+            return RedirectToAction(nameof(Index));
         }
-        else
-        {
-            if (reservation.status == "Approved" && inventory != null)
-                inventory.quantity_in_stock += reservation.quantity;
-
-            reservation.status = "Cancelled";
-        }
-
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync(); // dito nare-release ang locks
-    }
-    catch (Exception)
-    {
-        await transaction.RollbackAsync();
-        TempData["Error"] = "Could not update the reservation right now. Please try again.";
-        return RedirectToAction(nameof(Index));
-    }
-
-    if (approving)
-    {
-        var info = await _context.Reservations
-            .AsNoTracking()
-            .Where(r => r.reservation_id == id)
-            .Select(r => new { r.customer_id, ShoeName = r.ShoeInventory!.ShoeCatalog!.model_name })
-            .FirstOrDefaultAsync();
-
-        if (info != null)
-        {
-            await _notificationService.NotifyCustomerAsync(
-                info.customer_id,
-                "ReservationConfirmed",
-                "Reservation Confirmed",
-                $"Your reservation for {info.ShoeName ?? "your reserved item"} has been confirmed.");
-        }
-    }
-
-    TempData["Success"] = "Reservation status updated successfully.";
-    return RedirectToAction(nameof(Index));
-}
         private async Task<int?> GetCurrentAdminIdAsync()
         {
             var email = HttpContext.Session.GetString("AdminUser");

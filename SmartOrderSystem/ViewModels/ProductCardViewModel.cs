@@ -12,7 +12,7 @@ namespace SmartOrderSystem.Models
         public string? ImagePath { get; set; }
         public int TotalStock { get; set; }
         public double AvgRating { get; set; }
-        public  int RatingCount { get; set; }
+        public int RatingCount { get; set; }
         public int SoldCount { get; set; }
     }
 }

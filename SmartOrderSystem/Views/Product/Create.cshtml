@@ -19,7 +19,7 @@
 
             <!-- Main Layout (Ito ang naghahati sa kaliwa at kanang column) -->
             <div class="form-layout">
-                
+
                 <!-- LEFT COLUMN: Basic Information & Product Image -->
                 <div class="form-layout-column">
                     <div class="form-group">
@@ -71,7 +71,7 @@
 
                     <div class="form-group form-group-spaced">
                         <label asp-for="ProductImage">Product Image</label>
-                        
+
                         <div class="drag-drop-zone"
                              onclick="document.getElementById('ProductImage').click()"
                              ondragover="event.preventDefault()"
@@ -118,16 +118,16 @@
                 <!-- RIGHT COLUMN: Initial Stock per Size -->
                 <div class="form-side-panel">
                     <label class="fw-bold form-side-panel-title">Initial Stock per Size</label>
-                    
+
                     <div class="form-size-grid">
                         @for (int size = 36; size <= 45; size++)
                         {
                             <div class="form-size-card">
                                 <span>@size</span>
-                                <input type="number" 
-                                       name="SizesWithStocks[@size]" 
-                                       class="form-input" 
-                                       value="0" 
+                                <input type="number"
+                                       name="SizesWithStocks[@size]"
+                                       class="form-input"
+                                       value="0"
                                        min="0" />
                             </div>
                         }

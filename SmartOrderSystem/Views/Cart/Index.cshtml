@@ -41,28 +41,6 @@
     }
     else
     {
-        @if (!Model.QualifiesForFreeShipping)
-        {
-            <div class="cart-shipping-banner mb-4">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <i class="ti ti-circle-check text-success"></i>
-                    <span>You're <strong>&#8369;@Model.AmountAwayFromFreeShipping.ToString("N0")</strong> away from free shipping!</span>
-                </div>
-                <div class="cart-progress-track">
-                    <div class="cart-progress-fill" style="width:@Model.FreeShippingProgressPercent.ToString("0")%;"></div>
-                </div>
-                <div class="text-end small text-muted mt-1">
-                    &#8369;@Model.Subtotal.ToString("N0") / &#8369;@Model.FreeShippingThreshold.ToString("N0")
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="cart-shipping-banner cart-shipping-qualified mb-4">
-                <i class="ti ti-circle-check text-success"></i> <span>You qualify for free shipping!</span>
-            </div>
-        }
-
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="cart-items-card">
@@ -109,7 +87,7 @@
                     </div>
                     <div class="d-flex justify-content-between small mb-3">
                         <span>Shipping Fee</span>
-                        <span>@(Model.ShippingFee == 0 ? "FREE" : "₱" + Model.ShippingFee.ToString("N2"))</span>
+                        <span>Calculated at checkout</span>
                     </div>
 
                     <hr />
@@ -128,7 +106,7 @@
 
                     <div class="d-flex justify-content-between align-items-end mb-1">
                         <span class="fw-bold fs-5">Total</span>
-                        <span class="cart-total-amount">&#8369;@Model.Total.ToString("N2")</span>
+                        <span class="cart-total-amount">Calculated at checkout</span>
                     </div>
                     <div class="text-muted small mb-3">Inclusive of VAT</div>
 
@@ -142,17 +120,17 @@
 </div>
 
 @section Scripts {
-<script>
-    document.querySelectorAll('.cart-qty-form').forEach(form => {
-        const input = form.querySelector('.cart-qty-input');
-        form.querySelector('.cart-qty-minus').addEventListener('click', () => {
-            let val = parseInt(input.value);
-            if (val > 1) { input.value = val - 1; form.submit(); }
+    <script>
+        document.querySelectorAll('.cart-qty-form').forEach(form => {
+            const input = form.querySelector('.cart-qty-input');
+            form.querySelector('.cart-qty-minus').addEventListener('click', () => {
+                let val = parseInt(input.value);
+                if (val > 1) { input.value = val - 1; form.submit(); }
+            });
+            form.querySelector('.cart-qty-plus').addEventListener('click', () => {
+                input.value = parseInt(input.value) + 1;
+                form.submit();
+            });
         });
-        form.querySelector('.cart-qty-plus').addEventListener('click', () => {
-            input.value = parseInt(input.value) + 1;
-            form.submit();
-        });
-    });
-</script>
+    </script>
 }

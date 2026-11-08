@@ -161,94 +161,94 @@ namespace SmartOrderSystem.Controllers
         }
 
         // POST: /Reservation/Create 
-       [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Create(int inventoryId, int quantity)
-{
-    var customerId = await GetCurrentCustomerIdAsync();
-    if (customerId == null)
-    {
-        TempData["Error"] = "Please log in first to make a reservation.";
-        return RedirectToAction("Login", "Account");
-    }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(int inventoryId, int quantity)
+        {
+            var customerId = await GetCurrentCustomerIdAsync();
+            if (customerId == null)
+            {
+                TempData["Error"] = "Please log in first to make a reservation.";
+                return RedirectToAction("Login", "Account");
+            }
 
-    if (quantity <= 0)
-    {
-        TempData["Error"] = "Invalid quantity.";
-        return RedirectToAction("Index", "Shop");
-    }
+            if (quantity <= 0)
+            {
+                TempData["Error"] = "Invalid quantity.";
+                return RedirectToAction("Index", "Shop");
+            }
 
-    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-    // LOCK muna: kung dalawang customer ang sabay mag-reserve ng huling pares, ang isa ay maghihintay
-    var locked = await _context.LockInventoryRowsAsync(new[] { inventoryId });
-    if (!locked.TryGetValue(inventoryId, out var inventory))
-    {
-        TempData["Error"] = "Selected size is no longer available.";
-        return RedirectToAction("Index", "Shop");
-    }
+            // LOCK muna: kung dalawang customer ang sabay mag-reserve ng huling pares, ang isa ay maghihintay
+            var locked = await _context.LockInventoryRowsAsync(new[] { inventoryId });
+            if (!locked.TryGetValue(inventoryId, out var inventory))
+            {
+                TempData["Error"] = "Selected size is no longer available.";
+                return RedirectToAction("Index", "Shop");
+            }
 
-    if (await GetAvailableQuantityAsync(inventoryId) < quantity)
-    {
-        TempData["Error"] = "Not enough stock for the selected size.";
-        return RedirectToAction("Details", "Shop", new { id = inventory.shoe_id });
-    }
+            if (await GetAvailableQuantityAsync(inventoryId) < quantity)
+            {
+                TempData["Error"] = "Not enough stock for the selected size.";
+                return RedirectToAction("Details", "Shop", new { id = inventory.shoe_id });
+            }
 
-    var reservation = new Reservation
-    {
-        customer_id = customerId.Value,
-        inventory_id = inventoryId,
-        quantity = quantity,
-        status = "Pending",
-        reservation_date = DateTime.Now,
-        expires_at = DateTime.Now.AddHours(72)
-    };
+            var reservation = new Reservation
+            {
+                customer_id = customerId.Value,
+                inventory_id = inventoryId,
+                quantity = quantity,
+                status = "Pending",
+                reservation_date = DateTime.Now,
+                expires_at = DateTime.Now.AddHours(72)
+            };
 
-    _context.Reservations.Add(reservation);
-    await _context.SaveChangesAsync();
-    await transaction.CommitAsync();
+            _context.Reservations.Add(reservation);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-    TempData["Success"] = "Reservation submitted! Please wait for admin approval.";
-    return RedirectToAction(nameof(Index));
-}
+            TempData["Success"] = "Reservation submitted! Please wait for admin approval.";
+            return RedirectToAction(nameof(Index));
+        }
 
         // POST: /Reservation/Cancel
-       [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Cancel(int id)
-{
-    await UpdateExpiredReservationsAsync();
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            await UpdateExpiredReservationsAsync();
 
-    var customerId = await GetCurrentCustomerIdAsync();
-    if (customerId == null)
-        return RedirectToAction("Login", "Account");
+            var customerId = await GetCurrentCustomerIdAsync();
+            if (customerId == null)
+                return RedirectToAction("Login", "Account");
 
-    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
 
-    var reservation = await _context.LockReservationAsync(id);
-    if (reservation == null || reservation.customer_id != customerId)
-        return NotFound();
+            var reservation = await _context.LockReservationAsync(id);
+            if (reservation == null || reservation.customer_id != customerId)
+                return NotFound();
 
-    if (reservation.status != "Pending" && reservation.status != "Approved")
-    {
-        TempData["Error"] = "This reservation can no longer be cancelled.";
-        return RedirectToAction(nameof(Index));
-    }
+            if (reservation.status != "Pending" && reservation.status != "Approved")
+            {
+                TempData["Error"] = "This reservation can no longer be cancelled.";
+                return RedirectToAction(nameof(Index));
+            }
 
-    if (reservation.status == "Approved")
-    {
-        var locked = await _context.LockInventoryRowsAsync(new[] { reservation.inventory_id });
-        if (locked.TryGetValue(reservation.inventory_id, out var inventory))
-            inventory.quantity_in_stock += reservation.quantity;
-    }
+            if (reservation.status == "Approved")
+            {
+                var locked = await _context.LockInventoryRowsAsync(new[] { reservation.inventory_id });
+                if (locked.TryGetValue(reservation.inventory_id, out var inventory))
+                    inventory.quantity_in_stock += reservation.quantity;
+            }
 
-    reservation.status = "Cancelled";
-    await _context.SaveChangesAsync();
-    await transaction.CommitAsync();
+            reservation.status = "Cancelled";
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
-    TempData["Success"] = "Reservation cancelled.";
-    return RedirectToAction(nameof(Index));
-}
+            TempData["Success"] = "Reservation cancelled.";
+            return RedirectToAction(nameof(Index));
+        }
 
         public async Task<IActionResult> Details(int id)
         {

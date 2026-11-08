@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Orders Management";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
-    
+
     var pageIndex = ViewBag.PageIndex ?? 1;
     var totalPages = ViewBag.TotalPages ?? 1;
     var currentSearch = ViewBag.CurrentSearch as string ?? "";

@@ -1,3 +1,4 @@
+/* ===== Shared: storefront shell — Used by: Views/Shared/_ShopLayout.cshtml, Views/Cart/Index.cshtml, Views/Account/MyAddresses.cshtml, Views/Shop/Index.cshtml, Views/Shop/Products.cshtml, Views/Shop/Details.cshtml, Views/Shop/Contact.cshtml, Views/Shop/About.cshtml, Views/Reservation/Index.cshtml, Views/Reservation/Details.cshtml ===== */
 :root {
     --shop-red: #c0392b;
     --shop-red-dark: #8b1a12;
@@ -306,7 +307,108 @@ a.shop-logo, a.shop-logo:hover {
     border-color: #000;
 }
 
-/* ===== NOTIFICATION DROPDOWN ===== */
+/* ===== Shared: customer account menu — Used by: Views/Shared/_ShopLayout.cshtml ===== */
+.shop-account-wrap { display: inline-block; }
+.shop-account-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 10px;
+    width: 300px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 1000;
+    overflow: hidden;
+}
+.shop-account-panel.shop-account-open { display: block; }
+
+.shop-account-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+}
+.shop-account-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #e9e9e9;
+    display: flex; align-items: center; justify-content: center;
+    color: #999; font-size: 18px;
+    flex-shrink: 0;
+}
+.shop-account-name { font-weight: 700; font-size: 14px; }
+.shop-account-email { font-size: 12px; color: #888; }
+
+.shop-account-links { padding: 8px; }
+.shop-account-links a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+}
+.shop-account-links a:hover { background: #f7f7f7; }
+
+.shop-account-logout {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    color: #E31C25;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border-top: 1px solid #eee;
+}
+.shop-account-logout:hover { background: #fdeceb; }
+
+/* ===== Shared: storefront footer — Used by: Views/Shared/_ShopLayout.cshtml ===== */
+.shop-footer {
+    background: var(--shop-dark);
+}
+
+.shop-footer .logo-shoes-part {
+    color: #ffffff !important;
+}
+
+.shop-footer .shop-container {
+    padding-top: 2.2rem;
+    padding-bottom: 1.4rem;
+}
+
+.shop-footer h6 {
+    font-size: 0.92rem;
+}
+
+.shop-footer p,
+.footer-links li {
+    font-size: 0.82rem;
+}
+
+.footer-links li { margin-bottom: 6px; }
+.footer-links a { color: #b0b0b0; text-decoration: none; }
+.footer-links a:hover { color: var(--shop-red); }
+
+.footer-social {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.footer-social:hover { 
+    background: var(--shop-red); 
+}
+
+/* ===== Customer notification dropdown (shop-notif-) — Used by: Views/Shared/_ShopLayout.cshtml ===== */
 .shop-notif-count {
     position: absolute;
     top: -6px;
@@ -433,7 +535,7 @@ a.shop-logo, a.shop-logo:hover {
 .shop-notif-viewall { font-size: 13px; font-weight: 600; color: #e0245e; text-decoration: none; }
 .shop-notif-viewall:hover { text-decoration: underline; }
 
-/* SECTIONS */
+/* ===== Shop catalog sections (shop-) — Used by: Views/Shop/Index.cshtml, Views/Shop/Products.cshtml ===== */
 .shop-section {
     padding-top: 1.5rem;
     padding-bottom: 1.5rem;
@@ -443,7 +545,7 @@ a.shop-logo, a.shop-logo:hover {
     font-size: 1.15rem;
 }
 
-/* CATEGORY PILLS */
+/* ===== Shop category filters (category-) — Used by: Views/Shop/Index.cshtml, Views/Shop/Products.cshtml ===== */
 .category-pills {
     gap: 10px !important;
 }
@@ -467,7 +569,7 @@ a.shop-logo, a.shop-logo:hover {
     color: #fff;
 }
 
-/* PRODUCT CARD */
+/* ===== Shop product cards (product-) — Used by: Views/Shop/Index.cshtml, Views/Shop/Products.cshtml, Views/Product/ManageImages.cshtml ===== */
 .product-card {
     border: 1px solid #eee;
     border-radius: 10px;
@@ -562,50 +664,7 @@ a.shop-logo, a.shop-logo:hover {
 
 .btn-shop-primary-sm:hover { background: var(--shop-red-dark); color: #fff; }
 
-/* FOOTER */
-.shop-footer {
-    background: var(--shop-dark);
-}
-
-.shop-footer .logo-shoes-part {
-    color: #ffffff !important;
-}
-
-.shop-footer .shop-container {
-    padding-top: 2.2rem;
-    padding-bottom: 1.4rem;
-}
-
-.shop-footer h6 {
-    font-size: 0.92rem;
-}
-
-.shop-footer p,
-.footer-links li {
-    font-size: 0.82rem;
-}
-
-.footer-links li { margin-bottom: 6px; }
-.footer-links a { color: #b0b0b0; text-decoration: none; }
-.footer-links a:hover { color: var(--shop-red); }
-
-.footer-social {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: #2a2a2a;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    font-size: 0.85rem;
-}
-
-.footer-social:hover { 
-    background: var(--shop-red); 
-}
-/* DETAILS */
+/* ===== Shop product details (detail-) — Used by: Views/Shop/Details.cshtml, Views/Reservation/Index.cshtml, Views/Reservation/Details.cshtml ===== */
 .detail-main-img img {
     height: 420px;
     object-fit: contain;
@@ -670,7 +729,7 @@ a.shop-logo, a.shop-logo:hover {
     border: none;
     outline: none;
 }
-/* Reservation of space for future styles */
+/* ===== Customer reservation details (reservation-) — Used by: Views/Reservation/Index.cshtml, Views/Reservation/Details.cshtml ===== */
 .detail-panel {
     border: 1px solid #dee2e6;
     border-radius: 10px;
@@ -773,21 +832,7 @@ a.shop-logo, a.shop-logo:hover {
     margin-top: 8px;
 }
 
-/* order */
-.bg-purple { background-color: #6f42c1; }
-
-.checkout-stepper { gap: 0; }
-.checkout-stepper .step { display: flex; align-items: center; gap: 8px; color: #adb5bd; font-weight: 600; }
-.checkout-stepper .step.active { color: #dc3545; }
-.checkout-stepper .step.completed { color: #198754; }
-.checkout-stepper .step-circle {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 2px solid currentColor; font-size: 0.85rem;
-}
-.checkout-stepper .step-line { flex: 1; height: 2px; background: #dee2e6; margin: 0 12px; }
-
-/* ===== CART PAGE ===== */
+/* ===== Cart page styles (cart-) — Used by: Views/Cart/Index.cshtml ===== */
 .cart-clear-btn { color: #dc2626; border: 1px solid #f0d0d0; background: #fff; font-size: 13px; }
 .cart-clear-btn:hover { background: #fdeaea; }
 
@@ -813,8 +858,7 @@ a.shop-logo, a.shop-logo:hover {
 .cart-total-amount { font-weight: 800; font-size: 20px; color: #e0245e; }
 .cart-checkout-btn { background: #e0245e; color: #fff; padding: 12px; font-weight: 700; border: none; }
 .cart-checkout-btn:hover { background: #c31f52; color: #fff; }
-/* My Profile */
-/* ===== My Account (ma-) ===== */
+/* ===== My Account styles (ma-) — Used by: Views/Account/MyAccount.cshtml ===== */
 .ma-breadcrumb { font-size: 13px; color: #888; margin-bottom: 8px; }
 .ma-breadcrumb a { color: #888; text-decoration: none; }
 .ma-page-title { font-size: 28px; font-weight: 700; margin-bottom: 24px; }
@@ -904,7 +948,7 @@ a.shop-logo, a.shop-logo:hover {
     .ma-welcome-sub, .ma-sidebar-email, .ma-info-value { overflow-wrap: anywhere; }
 }
 
-/* Customer order and reservation cards */
+/* ===== Customer order and reservation cards — Used by: Views/Order/Index.cshtml, Views/Reservation/Index.cshtml, Views/Account/MyAddresses.cshtml ===== */
 .order-card-content { min-width: 0; }
 .order-card-content > * { min-width: 0; }
 .reservation-card-content { min-width: 0; }
@@ -929,62 +973,7 @@ a.shop-logo, a.shop-logo:hover {
     .ma-addresses-header { flex-direction: row; align-items: center; }
 }
 
-.shop-account-wrap { display: inline-block; }
-.shop-account-panel {
-    display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 10px;
-    width: 300px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    z-index: 1000;
-    overflow: hidden;
-}
-.shop-account-panel.shop-account-open { display: block; }
-
-.shop-account-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border-bottom: 1px solid #eee;
-}
-.shop-account-avatar {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    background: #e9e9e9;
-    display: flex; align-items: center; justify-content: center;
-    color: #999; font-size: 18px;
-    flex-shrink: 0;
-}
-.shop-account-name { font-weight: 700; font-size: 14px; }
-.shop-account-email { font-size: 12px; color: #888; }
-
-.shop-account-links { padding: 8px; }
-.shop-account-links a {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    color: #333;
-    text-decoration: none;
-    font-size: 14px;
-}
-.shop-account-links a:hover { background: #f7f7f7; }
-
-.shop-account-logout {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px;
-    color: #E31C25;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-    border-top: 1px solid #eee;
-}
-.shop-account-logout:hover { background: #fdeceb; }
-/* ===== Edit Profile (ep-) ===== */
+/* ===== Edit Profile styles (ep-) — Used by: Views/Account/EditProfile.cshtml ===== */
 .ep-main { width: 100%; }
 .ep-subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
 
@@ -1049,7 +1038,7 @@ a.shop-logo, a.shop-logo:hover {
     .ep-content-grid { grid-template-columns: 1fr; }
 }
 
-/* ===== Change Password (cp-) ===== */
+/* ===== Change Password styles (cp-) — Used by: Views/Account/ChangePassword.cshtml ===== */
 .cp-input-wrap { position: relative; }
 .cp-toggle-eye {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
@@ -1072,7 +1061,7 @@ a.shop-logo, a.shop-logo:hover {
     padding: 14px; border-radius: 10px; font-size: 13px;
 }
 .cp-info-note i { margin-top: 2px; }
-/* ===== My Addresses (ma-addr-) ===== */
+/* ===== My Addresses styles (ma-addr-) — Used by: Views/Account/MyAddresses.cshtml ===== */
 .ma-addr-card {
     background: #fff;
     border: 1px solid #eee;
@@ -1279,7 +1268,21 @@ a.shop-logo, a.shop-logo:hover {
         margin-left: 34px;
     }
 }
-/* ===== Checkout Delivery Address (co-) ===== */
+/* ===== Checkout flow styles (checkout-stepper) — Used by: Views/Checkout/Delivery.cshtml, Views/Checkout/Payment.cshtml, Views/Checkout/Confirmation.cshtml ===== */
+.bg-purple { background-color: #6f42c1; }
+
+.checkout-stepper { gap: 0; }
+.checkout-stepper .step { display: flex; align-items: center; gap: 8px; color: #adb5bd; font-weight: 600; }
+.checkout-stepper .step.active { color: #dc3545; }
+.checkout-stepper .step.completed { color: #198754; }
+.checkout-stepper .step-circle {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 2px solid currentColor; font-size: 0.85rem;
+}
+.checkout-stepper .step-line { flex: 1; height: 2px; background: #dee2e6; margin: 0 12px; }
+
+/* ===== Checkout delivery address styles (co-addr-) — Used by: Views/Checkout/Delivery.cshtml ===== */
 .co-addr-display {
     border: 1px solid #eee;
     border-radius: 10px;
@@ -1382,4 +1385,124 @@ a.shop-logo, a.shop-logo:hover {
 .co-addr-add-link:hover {
     text-decoration: underline;
     color: #c21f32;
+}
+
+/* ===== Order Details styles (od-) — Used by: Views/Order/Details.cshtml ===== */
+.od-back {
+    color: #6c757d;
+    text-decoration: none;
+    font-size: .9rem;
+}
+.od-back:hover { color: #212529; }
+
+.od-timeline {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+}
+.od-timeline::before,
+.od-timeline::after {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 10%;
+    height: 2px;
+}
+.od-timeline::before {
+    right: 10%;
+    background: #dee2e6;
+}
+.od-timeline::after {
+    width: calc(var(--od-progress, 0) * 1%);
+    background: #198754;
+}
+
+.od-step {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: .35rem;
+}
+.od-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid #ced4da;
+    color: #6c757d;
+    font-size: .85rem;
+}
+.od-step-done .od-dot {
+    background: #198754;
+    border-color: #198754;
+    color: #fff;
+}
+.od-step-current .od-dot {
+    box-shadow: 0 0 0 4px rgba(25, 135, 84, .2);
+}
+.od-step-label {
+    font-size: .85rem;
+    font-weight: 600;
+}
+.od-step:not(.od-step-done) .od-step-label {
+    color: #6c757d;
+    font-weight: 500;
+}
+.od-step-time {
+    font-size: .75rem;
+    color: #6c757d;
+}
+
+.od-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .3rem 0;
+    font-size: .9rem;
+}
+.od-row-total {
+    margin-top: .5rem;
+    padding-top: .75rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.od-cancel {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    background: transparent;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    border-radius: .5rem;
+    padding: .45rem .75rem;
+    font-size: .875rem;
+    cursor: pointer;
+}
+.od-cancel:hover:not(:disabled) { background: #fdecee; }
+.od-cancel:disabled {
+    color: #adb5bd;
+    border-color: #dee2e6;
+    cursor: not-allowed;
+}
+
+.od-modal {
+    border: 0;
+    border-radius: 12px;
+    padding: 0;
+    width: min(420px, calc(100vw - 2rem));
+}
+.od-modal::backdrop { background: rgba(0, 0, 0, .45); }
+.od-modal form { padding: 1.25rem; }
+
+@media (max-width: 575.98px) {
+    .od-step-label { font-size: .7rem; }
+    .od-step-time { display: none; }
 }

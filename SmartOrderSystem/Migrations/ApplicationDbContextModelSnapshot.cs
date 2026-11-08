@@ -295,6 +295,10 @@ namespace SmartOrderSystem.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("payment_status");
 
+                    b.Property<decimal>("shipping_fee")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("shipping_fee");
+
                     b.Property<string>("shipping_status")
                         .HasColumnType("longtext")
                         .HasColumnName("shipping_status");

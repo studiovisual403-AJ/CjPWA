@@ -7,7 +7,7 @@
 }
 
 <div class="mi-container">
-    
+
     @if (TempData["Error"] != null)
     {
         <div class="mi-alert-error" style="background:#fee2e2; color:#b91c1c; padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; font-weight:500;">
@@ -77,7 +77,7 @@
                 foreach (var img in Model.Images.OrderBy(i => i.DisplayOrder))
                 {
                     <div class="mi-image-card-item @(img.IsCover ? "is-cover-card" : "")" data-image-id="@img.Id">
-                        
+
                         <div class="mi-card-top-row">
                             <span class="mi-drag-handle" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span>
                             @if (img.IsCover)
@@ -98,10 +98,10 @@
                             <div class="mi-order-cell">
                                 <span class="mi-order-num"><strong>@(index++).</strong></span>
                                 <div class="mi-filename-cell" style="width: 100%;">
-                                    <input type="text" 
-                                           class="mi-filename-input" 
-                                           value="@img.FileName" 
-                                           data-image-id="@img.Id" 
+                                    <input type="text"
+                                           class="mi-filename-input"
+                                           value="@img.FileName"
+                                           data-image-id="@img.Id"
                                            onblur="saveFileName(@img.Id, this.value)" readonly />
                                 </div>
                             </div>
@@ -117,7 +117,7 @@
                             else
                             {
                                 <label class="mi-set-cover-label">
-                                    <input type="radio" name="coverRadio" class="mi-set-cover-btn" 
+                                    <input type="radio" name="coverRadio" class="mi-set-cover-btn"
                                            data-image-id="@img.Id" data-shoe-id="@Model.shoe_id" />
                                     <span>Set as Cover</span>
                                 </label>
@@ -127,7 +127,7 @@
                                 class="mi-replace-input"
                                 data-image-id="@img.Id"
                                 accept=".jpg,.jpeg,.png,.webp,.jfif"hidden />
-                            
+
                             <div class="mi-secondary-actions">
                                 <button type="button"
                                     class="mi-btn-action-outline replace-btn"
@@ -166,15 +166,15 @@
                 <i class="ti ti-x"></i>
             </button>
         </div>
-        
+
         <!-- Modal Form with Unique IDs -->
         <form asp-action="UploadImages" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
             <input type="hidden" name="shoeId" value="@Model.shoe_id" />
-            
+
             <div class="mi-modal-body" style="padding: 24px;">
                 <div class="drag-drop-zone mi-dropzone" id="miDropzoneModal" style="margin: 0; cursor: pointer;">
-                    
+
                     <!-- Image Preview -->
                     <img id="mi-image-preview" src="#" alt="Preview" style="display: none; width: 220px; height: 140px; object-fit: contain; border-radius: 8px; margin-bottom: 10px;" />
 
@@ -197,7 +197,7 @@
                             <i class="ti ti-trash"></i> Remove
                         </button>
                     </div>
-                    
+
                     <input type="file" name="imageFiles" id="miFileInputModal" accept="image/jpeg,image/jfif,image/png,image/webp" multiple style="display:none;" />
                     <div id="miFilePreviewModal"></div>
                 </div>

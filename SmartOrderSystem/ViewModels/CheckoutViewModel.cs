@@ -85,6 +85,7 @@ namespace SmartOrderSystem.ViewModels
         public DateTime OrderDate { get; set; }
         public string PaymentMethod { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
+        public decimal ShippingFee { get; set; }
 
         public string ShoeName { get; set; } = string.Empty;
         public string Brand { get; set; } = string.Empty;

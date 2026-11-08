@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartOrderSystem.Data;
+using SmartOrderSystem.Helpers;
 using SmartOrderSystem.ViewModels;
+using MySqlConnector;
+using System.Data;
 
 namespace SmartOrderSystem.Controllers
 {
@@ -12,6 +15,18 @@ namespace SmartOrderSystem.Controllers
         public OrderController(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        private static bool IsRetryableLockFailure(Exception exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException mysqlException &&
+                    (mysqlException.Number == 1213 || mysqlException.Number == 1205))
+                    return true;
+            }
+
+            return false;
         }
 
         private async Task<int?> GetCurrentCustomerIdAsync()
@@ -90,6 +105,84 @@ namespace SmartOrderSystem.Controllers
             return View(vm);
         }
 
+        // POST: /Order/Cancel/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Cancel(int id, string? reason, string? otherReason)
+        {
+            var customerId = await GetCurrentCustomerIdAsync();
+            if (customerId == null)
+                return RedirectToAction("Login", "Account");
+
+            var finalReason = (reason == "Other" ? otherReason : reason)?.Trim();
+            if (string.IsNullOrEmpty(finalReason))
+            {
+                TempData["OrderError"] = "Select a reason for cancelling.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+            if (finalReason.Length > 200)
+                finalReason = finalReason[..200];
+
+            var customerIdValue = customerId.Value;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
+            try
+            {
+                var order = await _context.Orders
+                    .FromSqlInterpolated($"SELECT * FROM orders WHERE order_id = {id} AND customer_id = {customerIdValue} FOR UPDATE")
+                    .FirstOrDefaultAsync();
+
+                if (order == null)
+                    return NotFound();
+
+                await _context.Entry(order).Collection(o => o.OrderItems).LoadAsync();
+
+                var currentStatus = order.status?.Trim();
+                var isPending = string.Equals(currentStatus, "Pending", StringComparison.OrdinalIgnoreCase);
+                var isConfirmed = string.Equals(currentStatus, "Confirmed", StringComparison.OrdinalIgnoreCase);
+                if (!isPending && !isConfirmed)
+                {
+                    TempData["OrderError"] = $"This order can't be cancelled anymore. Current status: {order.status}.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // Stock is deducted for confirmed orders, so only those orders give it back.
+                if (isConfirmed)
+                {
+                    var refundedQuantities = order.OrderItems
+                        .GroupBy(item => item.inventory_id)
+                        .ToDictionary(group => group.Key, group => group.Sum(item => item.quantity));
+
+                    var inventoryIds = refundedQuantities.Keys.OrderBy(x => x).ToList();
+                    var lockedInventory = await _context.LockInventoryRowsAsync(inventoryIds);
+
+                    foreach (var refunded in refundedQuantities)
+                    {
+                        if (lockedInventory.TryGetValue(refunded.Key, out var shoe))
+                            shoe.quantity_in_stock += refunded.Value;
+                    }
+                }
+
+                order.status = "Cancelled";
+                order.shipping_status = "Cancelled";
+                order.cancellation_reason = finalReason;
+                order.updated_at = DateTime.Now;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex) when (IsRetryableLockFailure(ex))
+            {
+                await transaction.RollbackAsync();
+                TempData["OrderError"] = "Your order couldn't be cancelled right now. Try again.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            TempData["OrderSuccess"] = "Your order has been cancelled.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         // GET: /Order/Details/5
         public async Task<IActionResult> Details(int id, string? tab, string? sort)
         {
@@ -129,6 +222,7 @@ namespace SmartOrderSystem.Controllers
                 TrackingNumber = order.tracking_number,
                 CancellationReason = order.cancellation_reason,
                 TotalAmount = order.total_amount,
+                ShippingFee = order.shipping_fee,
                 ReturnTab = string.IsNullOrWhiteSpace(tab) ? "All" : tab,
                 ReturnSort = string.IsNullOrWhiteSpace(sort) ? "recent" : sort,
                 Items = order.OrderItems.Select(i =>

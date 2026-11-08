@@ -8,7 +8,7 @@ namespace SmartOrderSystem.ViewModels
     {
         [Required(ErrorMessage = "Image is required.")]
         public IFormFile? ProductImage { get; set; }
-    
+
         [Required(ErrorMessage = "Brand is required.")]
         public string Brand { get; set; }
 

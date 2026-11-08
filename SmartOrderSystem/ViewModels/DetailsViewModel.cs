@@ -5,7 +5,7 @@ namespace SmartOrderSystem.Models
         public int InventoryId { get; set; }
         public decimal Size { get; set; }
         public int Stock { get; set; }
-        public decimal? Cm { get; set;}
+        public decimal? Cm { get; set; }
     }
 
     public class ProductDetailsViewModel

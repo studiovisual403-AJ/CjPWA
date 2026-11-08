@@ -70,24 +70,24 @@
                         <tr>
                             <td class="text-start product-name ps-3">@row.ModelName</td>
                             <td class="text-start product-sku">@row.Sku</td>
-                            
+
                             @foreach (var size in Model.SizeColumns)
                             {
-                                var qty = row.StockBySize.ContainsKey(size) && row.StockBySize[size].HasValue 
-                                          ? row.StockBySize[size].Value 
+                                var qty = row.StockBySize.ContainsKey(size) && row.StockBySize[size].HasValue
+                                          ? row.StockBySize[size].Value
                                           : 0;
-                                          
+
                                 var stockClass = qty == 0 ? "stock-out" : (qty <= 5 ? "stock-low" : "stock-ok");
 
                                 <td class="text-center">
                                     <span class="stock-pill @stockClass">@qty</span>
                                 </td>
                             }
-                            
+
                             <td class="text-center pe-3">
-                                <button type="button" 
-                                        class="btn-inventory-restock" 
-                                        data-bs-toggle="modal" 
+                                <button type="button"
+                                        class="btn-inventory-restock"
+                                        data-bs-toggle="modal"
                                         data-bs-target="#restockModal"
                                         data-product-name="@row.ModelName"
                                         data-product-sku="@row.Sku">
@@ -156,7 +156,7 @@
                 @Html.AntiForgeryToken()
                 @Html.AntiForgeryToken()
                 <div class="modal-body p-3">
-                    
+
                     <div class="mb-3">
                         <label class="modal-custom-label">SELECTED PRODUCT</label>
                         <div id="modalProductName" class="fw-bold text-dark mt-1 inventory-modal-product-name"></div>

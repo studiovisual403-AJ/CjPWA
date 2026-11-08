@@ -27,10 +27,9 @@
     <!-- ANNOUNCEMENT BAR -->
     <div class="shop-announce-bar">
         <div class="shop-container d-flex justify-content-between align-items-center">
-            <span><i class="ti ti-truck-delivery me-1"></i> Free shipping for orders ₱2,000 and above!</span>
+            <span><i class="ti ti-truck-delivery me-1"></i> Shipping fee at first order.</span>
             <div class="d-flex gap-3">
                 <a href="#" class="text-white text-decoration-none small"><i class="ti ti-device-mobile me-1"></i>Install App</a>
-                <a href="#" class="text-white text-decoration-none small"><i class="ti ti-headset me-1"></i>Get the best experience</a>
             </div>
         </div>
     </div>
@@ -74,15 +73,15 @@
                     @Html.AntiForgeryToken()
                 </div>
                 @{
-    var cartCount = ViewBag.CartCount ?? 0;
-}
-<a asp-controller="Cart" asp-action="Index" class="text-dark text-decoration-none position-relative">
-    <i class="ti ti-shopping-cart fs-4"></i>
-    @if (cartCount > 0)
-    {
-        <span class="cart-badge">@cartCount</span>
-    }
-</a>
+                    var cartCount = ViewBag.CartCount ?? 0;
+                }
+                <a asp-controller="Cart" asp-action="Index" class="text-dark text-decoration-none position-relative">
+                    <i class="ti ti-shopping-cart fs-4"></i>
+                    @if (cartCount > 0)
+                    {
+                        <span class="cart-badge">@cartCount</span>
+                    }
+                </a>
                 <div class="shop-account-wrap position-relative">
                     <a href="#" class="text-dark text-decoration-none d-flex align-items-center gap-1" id="shopAccountToggle">
                         <i class="ti ti-user fs-4"></i>
@@ -129,22 +128,22 @@
             var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
             var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
         }
-            <a asp-controller="Shop" asp-action="Index" 
+            <a asp-controller="Shop" asp-action="Index"
            class="@(currentController == "Shop" && currentAction == "Index" ? "active" : "")">Home</a>
-        
-            <a asp-controller="Shop" asp-action="Products" 
+
+            <a asp-controller="Shop" asp-action="Products"
            class="@(currentController == "Shop" && currentAction == "Products" ? "active" : "")">Products</a>
-        
-            <a asp-controller="Reservation" asp-action="Index" 
+
+            <a asp-controller="Reservation" asp-action="Index"
            class="@(currentController == "Reservation" ? "active" : "")">Reservations</a>
-        
-            <a asp-controller="Order" asp-action="Index" 
+
+            <a asp-controller="Order" asp-action="Index"
            class="@(currentController == "Order" ? "active" : "")">Orders</a>
-        
-            <a asp-controller="Shop" asp-action="About" 
+
+            <a asp-controller="Shop" asp-action="About"
            class="@(currentController == "Shop" && currentAction == "About" ? "active" : "")">About Us</a>
-        
-            <a asp-controller="Shop" asp-action="Contact" 
+
+            <a asp-controller="Shop" asp-action="Contact"
            class="@(currentController == "Shop" && currentAction == "Contact" ? "active" : "")">Contact</a>
         </div>
         </nav>

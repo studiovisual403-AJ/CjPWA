@@ -65,7 +65,7 @@ namespace SmartOrderSystem.Controllers
                 {
                     ShoeId = item.shoe_id,
                     Brand = item.brand,
-                    ModelName = $"{item.model_name} ({item.color})", 
+                    ModelName = $"{item.model_name} ({item.color})",
                     Sku = $"SHOE-{item.shoe_id:D4}"
                 };
 
@@ -102,97 +102,97 @@ namespace SmartOrderSystem.Controllers
         }
 
         // 2. RESTOCK: may row lock para hindi magkamali ang bilang kapag sabay ang restock/order
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> Restock(string Sku, decimal Size, int Quantity)
-{
-    if (string.IsNullOrWhiteSpace(Sku) || Quantity <= 0 || Size < 36 || Size > 45 || Size != decimal.Truncate(Size))
-    {
-        TempData["Error"] = "Please enter a valid quantity.";
-        return RedirectToAction("Index");
-    }
-
-    if (!Sku.StartsWith("SHOE-", StringComparison.OrdinalIgnoreCase) || !int.TryParse(Sku[5..], out int targetShoeId))
-    {
-        TempData["Error"] = "The product SKU format is invalid.";
-        return RedirectToAction("Index");
-    }
-
-    decimal sizeDecimal = Size;
-
-    if (!await _context.ShoeCatalogs.AnyAsync(s => s.shoe_id == targetShoeId))
-    {
-        TempData["Error"] = "The selected product does not exist.";
-        return RedirectToAction("Index");
-    }
-
-    await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-    ShoeInventory? newInventoryRecord = null;
-
-    try
-    {
-        var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
-
-        if (inventoryRecord != null)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Restock(string Sku, decimal Size, int Quantity)
         {
-            if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
+            if (string.IsNullOrWhiteSpace(Sku) || Quantity <= 0 || Size < 36 || Size > 45 || Size != decimal.Truncate(Size))
             {
-                TempData["Error"] = "The resulting stock quantity is too large.";
+                TempData["Error"] = "Please enter a valid quantity.";
                 return RedirectToAction("Index");
             }
-            inventoryRecord.quantity_in_stock += Quantity;
-        }
-        else
-        {
-            newInventoryRecord = new ShoeInventory
+
+            if (!Sku.StartsWith("SHOE-", StringComparison.OrdinalIgnoreCase) || !int.TryParse(Sku[5..], out int targetShoeId))
             {
-                shoe_id = targetShoeId,
-                size = sizeDecimal,
-                quantity_in_stock = Quantity
-            };
-            await _context.ShoeInventories.AddAsync(newInventoryRecord);
-        }
+                TempData["Error"] = "The product SKU format is invalid.";
+                return RedirectToAction("Index");
+            }
 
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-        TempData["Success"] = "Stock updated successfully.";
-    }
-    catch (DbUpdateException ex) when (
-        newInventoryRecord != null &&
-        ex.GetBaseException() is MySqlException { Number: 1062 })
-    {
-        await transaction.RollbackAsync();
-        _context.Entry(newInventoryRecord).State = EntityState.Detached;
+            decimal sizeDecimal = Size;
 
-        await using var retryTransaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-        var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
-        if (inventoryRecord == null)
-        {
-            await retryTransaction.RollbackAsync();
-            TempData["Error"] = "Another update was in progress for this item. Please try again.";
+            if (!await _context.ShoeCatalogs.AnyAsync(s => s.shoe_id == targetShoeId))
+            {
+                TempData["Error"] = "The selected product does not exist.";
+                return RedirectToAction("Index");
+            }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            ShoeInventory? newInventoryRecord = null;
+
+            try
+            {
+                var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
+
+                if (inventoryRecord != null)
+                {
+                    if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
+                    {
+                        TempData["Error"] = "The resulting stock quantity is too large.";
+                        return RedirectToAction("Index");
+                    }
+                    inventoryRecord.quantity_in_stock += Quantity;
+                }
+                else
+                {
+                    newInventoryRecord = new ShoeInventory
+                    {
+                        shoe_id = targetShoeId,
+                        size = sizeDecimal,
+                        quantity_in_stock = Quantity
+                    };
+                    await _context.ShoeInventories.AddAsync(newInventoryRecord);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                TempData["Success"] = "Stock updated successfully.";
+            }
+            catch (DbUpdateException ex) when (
+                newInventoryRecord != null &&
+                ex.GetBaseException() is MySqlException { Number: 1062 })
+            {
+                await transaction.RollbackAsync();
+                _context.Entry(newInventoryRecord).State = EntityState.Detached;
+
+                await using var retryTransaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+                var inventoryRecord = await _context.LockInventoryBySizeAsync(targetShoeId, sizeDecimal);
+                if (inventoryRecord == null)
+                {
+                    await retryTransaction.RollbackAsync();
+                    TempData["Error"] = "Another update was in progress for this item. Please try again.";
+                    return RedirectToAction("Index");
+                }
+
+                if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
+                {
+                    await retryTransaction.RollbackAsync();
+                    TempData["Error"] = "The resulting stock quantity is too large.";
+                    return RedirectToAction("Index");
+                }
+
+                inventoryRecord.quantity_in_stock += Quantity;
+                await _context.SaveChangesAsync();
+                await retryTransaction.CommitAsync();
+                TempData["Success"] = "Stock updated successfully.";
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Another update was in progress for this item. Please try again.";
+            }
+
             return RedirectToAction("Index");
         }
-
-        if (inventoryRecord.quantity_in_stock > int.MaxValue - Quantity)
-        {
-            await retryTransaction.RollbackAsync();
-            TempData["Error"] = "The resulting stock quantity is too large.";
-            return RedirectToAction("Index");
-        }
-
-        inventoryRecord.quantity_in_stock += Quantity;
-        await _context.SaveChangesAsync();
-        await retryTransaction.CommitAsync();
-        TempData["Success"] = "Stock updated successfully.";
-    }
-    catch (DbUpdateException)
-    {
-        await transaction.RollbackAsync();
-        TempData["Error"] = "Another update was in progress for this item. Please try again.";
-    }
-
-    return RedirectToAction("Index");
-}
 
         public async Task<IActionResult> ReorderPoints(string? status, string? q, int page = 1)
         {

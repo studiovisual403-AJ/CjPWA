@@ -37,16 +37,16 @@
         <main class="right-panel">
             <div class="login-card">
                 <div class="icon-box-small"><i class="fa-solid fa-lock icon-small"></i></div>
-                
+
                 @* LOGIN FORM *@
                 <div id="login-view">
                     <h2>@title</h2>
                     <p class="subtitle">Sign in to access your account</p>
-                    
+
                     @if (TempData["Success"] is string successMessage) { <div class="alert alert-success">@successMessage</div> }
                     @if (ViewBag.Error is string errorMessage) { <div class="alert alert-error">@errorMessage</div> }
                     <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
-                    
+
                     <form asp-action="Login" asp-controller="@controllerName" method="post">
                         @Html.AntiForgeryToken()
                         <div class="form-group">
@@ -61,7 +61,7 @@
                                 <button type="button" class="password-toggle" onclick="togglePassword('login-password', this)"><i class="fa-solid fa-eye"></i></button>
                             </div>
                             <span asp-validation-for="Password" class="field-validation-error"></span>
-                            @if(showRegister) 
+                            @if(showRegister)
                             {
                                 <a asp-action="ForgotPassword" asp-controller="@controllerName" class="forgot-link">Forgot Password?</a>
                             }
@@ -85,7 +85,7 @@
                     <div id="register-view" style="display:none;">
                         <h2>Create Account</h2>
                         <p class="subtitle">Join us today</p>
-                        
+
                         <form asp-action="Register" asp-controller="Account" method="post">
                             @Html.AntiForgeryToken()
                             <div class="form-group">

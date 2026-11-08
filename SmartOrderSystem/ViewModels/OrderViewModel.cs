@@ -70,6 +70,7 @@ namespace SmartOrderSystem.ViewModels
         public string? CancellationReason { get; set; }
 
         public decimal TotalAmount { get; set; }
+        public decimal ShippingFee { get; set; }
 
         public List<CustomerOrderItemViewModel> Items { get; set; } = new();
 

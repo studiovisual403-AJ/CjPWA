@@ -62,15 +62,19 @@ namespace SmartOrderSystem.Controllers
             }
 
             var state = new CheckoutSessionState { CartItemIds = cartItems.Select(c => c.CartItemId).ToList() };
+            await PrefillAddressAsync(state, customerId.Value);
             SaveState(state);
 
-            var summary = await BuildOrderSummaryAsync(state, customerId.Value);
+            var summary = await BuildOrderSummaryAsync(state, customerId.Value, state.City);
             return summary == null ? NotFound() : View(summary);
         }
 
         // ---- Order summary builders ----
 
-        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromReservationAsync(int reservationId)
+        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromReservationAsync(
+            int reservationId,
+            string? city,
+            bool isFirstOrder)
         {
             var reservation = await _context.Reservations
                 .Include(r => r.ShoeInventory)
@@ -83,7 +87,7 @@ namespace SmartOrderSystem.Controllers
                 return null;
 
             var pricing = PromotionHelper.CalculatePrice(catalog, reservation.quantity);
-            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
+            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal, city, isFirstOrder);
 
             return new CheckoutOrderSummaryViewModel
             {
@@ -94,12 +98,16 @@ namespace SmartOrderSystem.Controllers
                 Quantity = reservation.quantity,
                 UnitPrice = pricing.UnitPrice,
                 Subtotal = pricing.Subtotal,
-                ShippingFee = totals.ShippingFee,
+                ShippingFee = totals.Shipping,
                 Total = totals.Total
             };
         }
 
-        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromInventoryAsync(int inventoryId, int quantity)
+        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromInventoryAsync(
+            int inventoryId,
+            int quantity,
+            string? city,
+            bool isFirstOrder)
         {
             var inventory = await _context.ShoeInventories
                 .Include(i => i.ShoeCatalog)
@@ -111,7 +119,7 @@ namespace SmartOrderSystem.Controllers
                 return null;
 
             var pricing = PromotionHelper.CalculatePrice(catalog, quantity);
-            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
+            var totals = ShippingHelper.CalculateTotals(pricing.Subtotal, city, isFirstOrder);
 
             return new CheckoutOrderSummaryViewModel
             {
@@ -122,12 +130,16 @@ namespace SmartOrderSystem.Controllers
                 Quantity = quantity,
                 UnitPrice = pricing.UnitPrice,
                 Subtotal = pricing.Subtotal,
-                ShippingFee = totals.ShippingFee,
+                ShippingFee = totals.Shipping,
                 Total = totals.Total
             };
         }
 
-        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromCartAsync(List<int> cartItemIds, int customerId)
+        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryFromCartAsync(
+            List<int> cartItemIds,
+            int customerId,
+            string? city,
+            bool isFirstOrder)
         {
             var cartItems = await _context.CartItems
                 .Include(c => c.Shoe)
@@ -155,22 +167,31 @@ namespace SmartOrderSystem.Controllers
                 summary.Subtotal += pricing.Subtotal;
             }
 
-            var totals = ShippingHelper.CalculateTotals(summary.Subtotal);
-            summary.ShippingFee = totals.ShippingFee;
+            var totals = ShippingHelper.CalculateTotals(summary.Subtotal, city, isFirstOrder);
+            summary.ShippingFee = totals.Shipping;
             summary.Total = totals.Total;
             return summary;
         }
 
-        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryAsync(CheckoutSessionState state, int customerId)
+        private async Task<CheckoutOrderSummaryViewModel?> BuildOrderSummaryAsync(
+            CheckoutSessionState state,
+            int customerId,
+            string? city)
         {
+            var isFirstOrder = await IsFirstOrderAsync();
+
             if (state.CartItemIds.Any())
-                return await BuildOrderSummaryFromCartAsync(state.CartItemIds, customerId);
+                return await BuildOrderSummaryFromCartAsync(state.CartItemIds, customerId, city, isFirstOrder);
 
             if (state.ReservationId.HasValue)
-                return await BuildOrderSummaryFromReservationAsync(state.ReservationId.Value);
+                return await BuildOrderSummaryFromReservationAsync(state.ReservationId.Value, city, isFirstOrder);
 
             if (state.InventoryId.HasValue && state.Quantity.HasValue)
-                return await BuildOrderSummaryFromInventoryAsync(state.InventoryId.Value, state.Quantity.Value);
+                return await BuildOrderSummaryFromInventoryAsync(
+                    state.InventoryId.Value,
+                    state.Quantity.Value,
+                    city,
+                    isFirstOrder);
 
             return null;
         }
@@ -242,10 +263,6 @@ namespace SmartOrderSystem.Controllers
                 }
             }
 
-            var summary = await BuildOrderSummaryAsync(state, customerId.Value);
-            if (summary == null)
-                return NotFound();
-
             var savedAddresses = await _context.CustomerAddresses
                 .Where(a => a.customer_id == customerId.Value)
                 .OrderByDescending(a => a.is_default)
@@ -261,6 +278,10 @@ namespace SmartOrderSystem.Controllers
                 a.barangay == state.Barangay &&
                 a.street_address == state.Street &&
                 a.landmark == state.Landmark) ?? savedAddresses.FirstOrDefault();
+
+            var summary = await BuildOrderSummaryAsync(state, customerId.Value, selected?.city ?? state.City);
+            if (summary == null)
+                return NotFound();
 
             var vm = new CheckoutDeliveryViewModel
             {
@@ -351,7 +372,7 @@ namespace SmartOrderSystem.Controllers
                 return RedirectToAction(nameof(Delivery));
             }
 
-            var summary = await BuildOrderSummaryAsync(state, customerId.Value);
+            var summary = await BuildOrderSummaryAsync(state, customerId.Value, state.City);
             if (summary == null)
                 return NotFound();
 
@@ -428,6 +449,7 @@ namespace SmartOrderSystem.Controllers
 
             await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
+            var isFirstOrder = await IsFirstOrderAsync();
             Order order;
 
             if (state.CartItemIds.Any())
@@ -477,12 +499,13 @@ namespace SmartOrderSystem.Controllers
                     item => item.CartItemId,
                     item => PromotionHelper.CalculatePrice(item.Shoe, item.Quantity));
                 var subtotal = pricingByCartItemId.Values.Sum(pricing => pricing.Subtotal);
-                var totals = ShippingHelper.CalculateTotals(subtotal);
+                var totals = ShippingHelper.CalculateTotals(subtotal, address.city, isFirstOrder);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
+                    shipping_fee = totals.Shipping,
                     total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
@@ -537,12 +560,13 @@ namespace SmartOrderSystem.Controllers
                 var address = await CreateAddressAsync(state, customerId.Value);
 
                 var pricing = PromotionHelper.CalculatePrice(catalog, reservation.quantity);
-                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
+                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal, address.city, isFirstOrder);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
+                    shipping_fee = totals.Shipping,
                     total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
@@ -588,12 +612,13 @@ namespace SmartOrderSystem.Controllers
                 var address = await CreateAddressAsync(state, customerId.Value);
 
                 var pricing = PromotionHelper.CalculatePrice(catalog, qty);
-                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal);
+                var totals = ShippingHelper.CalculateTotals(pricing.Subtotal, address.city, isFirstOrder);
 
                 order = new Order
                 {
                     customer_id = customerId.Value,
                     address_id = address.address_id,
+                    shipping_fee = totals.Shipping,
                     total_amount = totals.Total,
                     status = "Confirmed",
                     payment_method = state.PaymentMethod ?? "Cash on Delivery",
@@ -638,6 +663,17 @@ namespace SmartOrderSystem.Controllers
                 return RedirectToAction("Login", "Account");
 
             return await ShowConfirmation(orderId, customerId.Value);
+        }
+
+        private async Task<bool> IsFirstOrderAsync()
+        {
+            var customerId = await GetCurrentCustomerIdAsync();
+            if (customerId == null)
+                return false;
+
+            return !await _context.Orders.AnyAsync(o =>
+                o.customer_id == customerId.Value &&
+                o.status != "Cancelled");
         }
 
         // Iniiwasan na dito ang paggawa ng duplicate CustomerAddress rows: kung meron nang
@@ -712,6 +748,7 @@ namespace SmartOrderSystem.Controllers
                 OrderDate = order.order_date,
                 PaymentMethod = order.payment_method ?? "Cash on Delivery",
                 TotalAmount = order.total_amount,
+                ShippingFee = order.shipping_fee,
                 ShoeName = catalog?.model_name ?? "Unknown",
                 Brand = catalog?.brand ?? "Unknown",
                 ImagePath = catalog?.image_path,

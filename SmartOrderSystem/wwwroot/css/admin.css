@@ -5,10 +5,7 @@
    admin-layout.css. Cascade order is intentionally preserved.
    ======================================================= */
 
-/* =======================================================
-   PAGE: ACCOUNT LOGIN
-   View: Views/Account/Login.cshtml
-   ======================================================= */
+/* ===== Account Login styles (admin-login-) — Used by: Views/Shared/_Login.cshtml, Views/Product/ManageImages.cshtml ===== */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -279,12 +276,7 @@
     text-decoration: none;
 }
 
-/* =======================================================
-   COMPONENTS: SHARED PAGE HEADER AND PRODUCT FORM
-   Views/Shared/_PageHeader.cshtml
-   Views/Product/Create.cshtml
-   Views/Product/Edit.cshtml
-   ======================================================= */
+/* ===== Shared: page header and product form — Used by: Views/Shared/_PageHeader.cshtml, Views/OrdersManagement/Index.cshtml, Views/ReservationManagement/Index.cshtml, Views/Product/Create.cshtml, Views/Product/Edit.cshtml, wwwroot/js/product-image-upload.js ===== */
 .page-header h1 {
     font-size: 1.75rem;
 }
@@ -525,10 +517,7 @@ button[type="submit"].btn-secondary:hover {
     display: none;
 }
 
-/* =======================================================
-   PAGE: INVENTORY
-   View: Views/Inventory/Index.cshtml
-   ======================================================= */
+/* ===== Inventory page styles (inventory-) — Used by: Views/Inventory/Index.cshtml ===== */
 .inventory-summary-count-text {
     font-size: 0.85rem;
 }
@@ -575,11 +564,7 @@ button[type="submit"].btn-secondary:hover {
     background: #111;
 }
 
-/* =======================================================
-   PAGE: ORDERS MANAGEMENT
-   Views/OrdersManagement/Index.cshtml
-   Views/OrdersManagement/Details.cshtml
-   ======================================================= */
+/* ===== Orders Management styles (order-) — Used by: Views/OrdersManagement/Index.cshtml, Views/Shared/_StatusBadge.cshtml ===== */
 .order-summary-label {
     font-size: 0.725rem;
     letter-spacing: 0.3px;
@@ -592,10 +577,8 @@ button[type="submit"].btn-secondary:hover {
     font-size: 0.7rem;
 }
 
-/* =======================================================
-   PAGE: SALES
-   View: Views/Sales/Index.cshtml
-   ======================================================= */
+/* ===== Sales page styles (sales-) ===== */
+/* Used by: not found in any view */
 .sales-empty-state {
     color: #94a3b8;
     font-size: 0.85rem;
@@ -605,11 +588,7 @@ button[type="submit"].btn-secondary:hover {
     background: var(--sales-color, transparent);
 }
 
-/* =======================================================
-   PAGE: RESERVATION MANAGEMENT
-   Views/ReservationManagement/Index.cshtml
-   Views/ReservationManagement/Details.cshtml
-   ======================================================= */
+/* ===== Reservation Management styles (reservation-) — Used by: Views/ReservationManagement/Index.cshtml ===== */
 .reservation-action-cell {
     min-width: 120px;
 }
@@ -618,10 +597,7 @@ button[type="submit"].btn-secondary:hover {
     font-size: 0.8rem;
 }
 
-/* =======================================================
-   PAGE: ORDERS MANAGEMENT — INDEX
-   View: Views/OrdersManagement/Index.cshtml
-   ======================================================= */
+/* ===== Orders Management Index styles — Used by: Views/OrdersManagement/Index.cshtml ===== */
 .status-box-card {
     background: #ffffff;
     border-radius: 8px;
@@ -872,7 +848,7 @@ button[type="submit"].btn-secondary:hover {
     color: #9CA3AF;
 }
 
-/* ===== Admin Toast (oa-toast) ===== */
+/* ===== Admin order toast styles (oa-toast-) — Used by: Views/OrdersManagement/Details.cshtml, wwwroot/js/orders-management.js ===== */
 .oa-toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
 .oa-toast { display: flex; align-items: center; gap: 10px; min-width: 280px; max-width: 420px; padding: 14px 16px; border-radius: 10px; color: #fff; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,.18); opacity: 0; transform: translateX(40px); transition: opacity .3s ease, transform .3s ease; }
 .oa-toast-show { opacity: 1; transform: translateX(0); }
@@ -889,7 +865,7 @@ button[type="submit"].btn-secondary:hover {
 .oa-action-btn.oa-notify:hover:not(:disabled) { background: #e8f1fd; }
 .oa-action-btn.oa-notify .oa-action-icon { color: #1565c0; }dote
 
-/* ===== Admin notification bell (nb-) ===== */
+/* ===== Admin notification bell styles (nb-) — Used by: Views/Shared/Components/AdminNotificationBell/Default.cshtml, wwwroot/js/admin-notification-bell.js ===== */
 .nb-root { position: relative; }
 .nb-trigger.dropdown-toggle::after { display: none; }
 .nb-badge { position: absolute; top: -4px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; line-height: 18px; text-align: center; }
@@ -913,7 +889,8 @@ button[type="submit"].btn-secondary:hover {
 .nb-section-link { display: inline-block; margin: 5px 16px 0; color: #2563eb; font-size: 12px; font-weight: 600; text-decoration: none; }
 .nb-section-link:hover { text-decoration: underline; }
 
-/* ===== Reorder Points (rop-) ===== */
+/* ===== Reorder Points styles (rop-) ===== */
+/* Used by: not found in any view */
 .rop-card { display: flex; flex-direction: column; padding: 16px 18px; border-radius: 14px; text-decoration: none; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.06); border-left: 5px solid #bbb; transition: transform .15s ease; }
 .rop-card:hover { transform: translateY(-2px); }
 .rop-card-num { font-size: 1.8rem; font-weight: 700; line-height: 1.1; color: #222; }
@@ -928,10 +905,7 @@ button[type="submit"].btn-secondary:hover {
 .rop-status-healthy { background: #e8f5e9; color: #2e7d32; }
 .rop-status-no-demand-data { background: #eceff1; color: #607d8b; }
 
-/* =======================================================
-   PAGE: RESERVATION MANAGEMENT — INDEX
-   View: Views/ReservationManagement/Index.cshtml
-   ======================================================= */
+/* ===== Reservation Management Index styles — Used by: Views/ReservationManagement/Index.cshtml ===== */
 .mock-summary-card {
     background: #fff;
     border: 1px solid #ffffff;
@@ -1052,10 +1026,7 @@ button[type="submit"].btn-secondary:hover {
     opacity: 0.6;
 }
 
-/* =======================================================
-   PAGE: SALES DASHBOARD
-   View: Views/Sales/Index.cshtml
-   ======================================================= */
+/* ===== Sales Dashboard styles (sd-) — Used by: Views/Sales/Index.cshtml, wwwroot/js/sales-charts.js ===== */
 .sd-page {
     color: #1e293b;
     font-family: "Inter", "Segoe UI", Arial, sans-serif;
@@ -1718,16 +1689,7 @@ button[type="submit"].btn-secondary:hover {
     }
 }
  
-/* =======================================================
-   PAGE: PRODUCT IMAGE MANAGEMENT
-   View: Views/Product/ManageImages.cshtml
-   ======================================================= */
-.mi-upload-icon {
-    font-size: 2rem;
-    margin-bottom: 6px;
-    display: block;
-}
-
+/* ===== Product Image Management styles (mi-) — Used by: Views/Product/ManageImages.cshtml, wwwroot/js/product-image-upload.js ===== */
 .mi-upload-message {
     margin: 0 0 2px 0;
     font-size: 0.85rem;
@@ -1738,13 +1700,6 @@ button[type="submit"].btn-secondary:hover {
     font-size: 0.7rem;
     color: #94a3b8;
 }
-
-.mi-column-order { width: 70px; }
-.mi-column-image { width: 90px; }
-.mi-column-size { width: 90px; }
-.mi-column-status { width: 90px; }
-.mi-column-actions { width: 220px; }
-
 
 .footer-note a:hover {
     text-decoration: underline;
@@ -1762,20 +1717,7 @@ button[type="submit"].btn-secondary:hover {
 }
 
 /* ── Error Message ── */
-.error-message {
-    width: 100%;
-    background: #f8d7da;
-    color: #721c24;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 16px;
-    text-align: left;
-}
-/* =======================================================
-   CJ SHOES – Dashboard Page Styles
-   File: wwwroot/css/admin.css
-   ======================================================= */
+/* ===== Shared: dashboard and admin components — Used by: Views/Dashboard/Index.cshtml, Views/Inventory/Index.cshtml, Views/Inventory/ReorderPoints.cshtml, Views/OrdersManagement/Index.cshtml, Views/OrdersManagement/Details.cshtml, Views/Product/Index.cshtml, Views/Product/Promotion.cshtml, Views/Reservation/Details.cshtml, Views/Reservation/Index.cshtml, Views/ReservationManagement/Index.cshtml, Views/ReservationManagement/Details.cshtml, Views/Sales/Index.cshtml, Views/Shared/_PageHeader.cshtml, Views/Shared/_StatusBadge.cshtml ===== */
 
 /* ---------- Page Header ---------- */
 .page-header {
@@ -1801,10 +1743,6 @@ button[type="submit"].btn-secondary:hover {
     gap: 16px;
     margin-bottom: 20px;
     transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.stats-card:hover {
-    transform: translateY(-2px); 
 }
 
 .stat-card {
@@ -1906,13 +1844,6 @@ button[type="submit"].btn-secondary:hover {
 }
 
 /* Panel Links */
-.panel-link {
-    font-size: 12px;
-    color: #4f46e5;
-    text-decoration: none;
-    font-weight: 500;
-}
-
 /* ---------- Orders Table ---------- */
 .orders-table {
     width: 100%;
@@ -2060,19 +1991,6 @@ button[type="submit"].btn-secondary:hover {
     border-bottom: none;
 }
 
-.stock-icon { 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background-color: #fee2e2;
-    color: #dc2626; 
-    border-radius: 6px;
-    margin-right: 16px; 
-    font-size: 1.1rem; 
-    flex-shrink: 0;
-}
 .stock-info { flex: 1; }
 .stock-info h3 { font-size: 0.9rem; margin: 0; font-weight: 600; color: #1a1a1a; }
 .stock-info p { font-size: 0.8rem; color: #6b7280; margin: 4px 0 0 0; }
@@ -2093,23 +2011,6 @@ button[type="submit"].btn-secondary:hover {
     font-size: 0.7rem; 
     color: #6b7280; 
     margin-top: 2px;
-}
-
-.btn-details { 
-    margin-left: 10px; 
-    font-size: 0.75rem; 
-    color: #4f46e5; 
-    border: 1px solid #e0e7ff; 
-    background-color: white;
-    padding: 6px 12px; 
-    border-radius: 6px; 
-    text-decoration: none; 
-    font-weight: 500;
-    transition: background-color 0.2s;
-    white-space: nowrap;
-}
-.btn-details:hover {
-    background-color: #e0e7ff;
 }
 
 .count-badge { 
@@ -2189,14 +2090,8 @@ button[type="submit"].btn-secondary:hover {
     .stats-grid { grid-template-columns: 1fr; }
     .stock-row { flex-direction: column; align-items: flex-start; }
     .stock-meta { margin-left: 0; text-align: left; margin-top: 10px; padding-right: 0; }
-    .btn-details { margin-left: 0; margin-top: 10px; width: 100%; text-align: center; }
 }
-/* =======================================================
-   PAGE: PRODUCT CATALOG AND PRODUCT FORMS
-   Views/Product/Index.cshtml
-   Views/Product/Create.cshtml
-   Views/Product/Edit.cshtml
-   ======================================================= */
+/* ===== Product Catalog and Forms styles — Used by: Views/Product/Index.cshtml, Views/Product/Create.cshtml, Views/Product/Edit.cshtml, wwwroot/js/product-image-upload.js ===== */
 .row-actions {
     display: flex;
     justify-content: flex-end;
@@ -2447,7 +2342,6 @@ button[type="submit"].btn-secondary:hover {
     gap: 20px;
 }
 
-.inline-form { display: inline-flex; margin: 0; }
 .icon-btn {
     display: flex;
     flex-direction: column;
@@ -2476,9 +2370,6 @@ button[type="submit"].btn-secondary:hover {
 }
 
 .icon-btn:hover { color: #2c2c2a; }
-
-.icon-btn-danger { color: #e08585; }
-.icon-btn-danger:hover { color: #e74c3c; }
 
 .catalog-footer {
     display: flex;
@@ -2623,16 +2514,7 @@ button[type="submit"].btn-secondary:hover {
     gap: 10px;
     margin-top: 20px;
 }
-/* =======================================================
-   ORDER DETAILS PAGE — Views/OrdersManagement/Details.cshtml
-   Prefix: oa- (Order Actions)
-   ======================================================= */
-
-/* =======================================================
-   PAGE: ORDER DETAILS
-   View: Views/OrdersManagement/Details.cshtml
-   Prefix: oa- (Order Actions)
-   ======================================================= */
+/* ===== Order Details styles (oa-) — Used by: Views/OrdersManagement/Details.cshtml, wwwroot/js/orders-management.js ===== */
 .oa-status-badge {
     padding: .5rem 1rem;
     font-weight: 600;
@@ -2724,15 +2606,7 @@ button[type="submit"].btn-secondary:hover {
     }
     .catalog-footer { flex-direction: column; align-items: flex-start; }
 }
-/* ===================================================
-   Live Inventory Module - Page Specific Styles
-   (admin.css - page-level styles only)
-=================================================== */
-
-/* =======================================================
-   PAGE: LIVE INVENTORY MODULE
-   View: Views/Inventory/Index.cshtml
-   ======================================================= */
+/* ===== Live Inventory styles (inventory-) — Used by: Views/Inventory/Index.cshtml, wwwroot/js/inventory-restock.js ===== */
 .inventory-page {
     padding: 0;
 }
@@ -3037,32 +2911,7 @@ button[type="submit"].btn-secondary:hover {
     pointer-events: none;
     background-color: #edf2f7;
 }
-.timeline-item{
-    position:relative;
-    padding-left:55px;
-    margin-bottom:30px;
-}
-
-.timeline-item::before{
-    content:"";
-    position:absolute;
-    left:16px;
-    top:36px;
-    width:2px;
-    height:45px;
-    background:#e5e7eb;
-}
-
-.timeline-item:last-child::before{
-    display:none;
-}
-
-/* =======================================================
-   COMPONENTS: SHARED ADMIN CONSISTENCY OVERRIDES
-   Views/Shared/_AdminLayout.cshtml and all admin pages.
-   These declarations intentionally remain last to preserve
-   the existing cascade over earlier page-specific rules.
-   ======================================================= */
+/* ===== Shared: admin consistency overrides — Used by: Views/Shared/_AdminLayout.cshtml, Views/AdminAccount/Settings.cshtml, Views/AdminAccount/Profile.cshtml, Views/AdminAccount/Notifications.cshtml, Views/Dashboard/Index.cshtml, Views/Inventory/Index.cshtml, Views/Inventory/ReorderPoints.cshtml, Views/OrdersManagement/Index.cshtml, Views/OrdersManagement/Details.cshtml, Views/Product/Create.cshtml, Views/Product/Edit.cshtml, Views/Product/Index.cshtml, Views/Product/ManageImages.cshtml, Views/Product/Promotion.cshtml, Views/ReservationManagement/Index.cshtml, Views/ReservationManagement/Details.cshtml, Views/Sales/Index.cshtml. These declarations intentionally remain last to preserve cascade. */
 .btn-primary,
 .btn-secondary,
 .btn-view-details,
@@ -3118,7 +2967,6 @@ button[type="submit"].btn-secondary:hover {
 .status-box-card,
 .mock-summary-card,
 .mock-filter-bar,
-.kpi-card,
 .admin-detail-card {
     border: 1px solid #e2e8f0;
     border-radius: 12px;
@@ -3242,8 +3090,7 @@ button[type="submit"].btn-secondary:hover {
     font-size: 1.25rem;
 }
 
-.icon-btn,
-.mi-btn-icon {
+.icon-btn {
     min-width: 32px;
     min-height: 32px;
     border-radius: 8px;

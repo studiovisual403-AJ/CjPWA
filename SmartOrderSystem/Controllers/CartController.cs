@@ -28,7 +28,7 @@ namespace SmartOrderSystem.Controllers
 
         public async Task<IActionResult> Index()
         {
-                        var customerId = GetCurrentCustomerId();
+            var customerId = GetCurrentCustomerId();
             if (customerId == null)
             {
                 return RedirectToAction("Login", "Account");
@@ -67,12 +67,11 @@ namespace SmartOrderSystem.Controllers
             }
 
             vm.Subtotal = vm.Items.Sum(i => i.LineTotal);
-            vm.ShippingFee = ShippingHelper.CalculateTotals(vm.Subtotal).ShippingFee;
 
             return View(vm);
         }
 
-                [HttpPost]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddToCart(int inventoryId, int quantity = 1)
         {
@@ -82,58 +81,58 @@ namespace SmartOrderSystem.Controllers
             }
 
             var customerId = GetCurrentCustomerId();
-    if (customerId == null)
-    {
-        return Json(new { success = false, redirectToLogin = true });
-    }
+            if (customerId == null)
+            {
+                return Json(new { success = false, redirectToLogin = true });
+            }
 
-    var inventory = await _context.ShoeInventories // TODO: i-verify pangalan ng DbSet
-        .Include(i => i.ShoeCatalog)
-        .FirstOrDefaultAsync(i => i.inventory_id == inventoryId);
+            var inventory = await _context.ShoeInventories // TODO: i-verify pangalan ng DbSet
+                .Include(i => i.ShoeCatalog)
+                .FirstOrDefaultAsync(i => i.inventory_id == inventoryId);
 
-    if (inventory == null || inventory.ShoeCatalog == null)
-        return Json(new { success = false, message = "Item not found." });
+            if (inventory == null || inventory.ShoeCatalog == null)
+                return Json(new { success = false, message = "Item not found." });
 
-    if (inventory.quantity_in_stock < quantity)
-        return Json(new { success = false, message = "Not enough stock available." });
+            if (inventory.quantity_in_stock < quantity)
+                return Json(new { success = false, message = "Not enough stock available." });
 
-    var shoe = inventory.ShoeCatalog;
-    var sizeLabel = inventory.size.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
-    var color = shoe.color ?? "";
+            var shoe = inventory.ShoeCatalog;
+            var sizeLabel = inventory.size.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            var color = shoe.color ?? "";
 
-    var existing = await _context.CartItems.FirstOrDefaultAsync(c =>
-        c.CustomerId == customerId && c.ShoeId == shoe.shoe_id && c.Size == sizeLabel && c.Color == color);
+            var existing = await _context.CartItems.FirstOrDefaultAsync(c =>
+                c.CustomerId == customerId && c.ShoeId == shoe.shoe_id && c.Size == sizeLabel && c.Color == color);
 
-    var requestedTotal = (existing?.Quantity ?? 0) + quantity;
-    if (requestedTotal > inventory.quantity_in_stock)
-        return Json(new { success = false, message = $"Only {inventory.quantity_in_stock} item(s) are available for this size." });
+            var requestedTotal = (existing?.Quantity ?? 0) + quantity;
+            if (requestedTotal > inventory.quantity_in_stock)
+                return Json(new { success = false, message = $"Only {inventory.quantity_in_stock} item(s) are available for this size." });
 
-    if (existing != null)
-    {
-        existing.Quantity = requestedTotal;
-    }
-    else
-    {
-        _context.CartItems.Add(new CartItem
-        {
-            CustomerId = customerId.Value,
-            ShoeId = shoe.shoe_id,
-            Size = sizeLabel,
-            Color = color,
-            Quantity = quantity,
-            PriceAtAddTime = PromotionHelper.GetEffectivePrice(shoe),
-            CreatedAt = DateTime.Now
-        });
-    }
+            if (existing != null)
+            {
+                existing.Quantity = requestedTotal;
+            }
+            else
+            {
+                _context.CartItems.Add(new CartItem
+                {
+                    CustomerId = customerId.Value,
+                    ShoeId = shoe.shoe_id,
+                    Size = sizeLabel,
+                    Color = color,
+                    Quantity = quantity,
+                    PriceAtAddTime = PromotionHelper.GetEffectivePrice(shoe),
+                    CreatedAt = DateTime.Now
+                });
+            }
 
-    await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
-    var cartCount = await _context.CartItems
-        .Where(c => c.CustomerId == customerId)
-        .SumAsync(c => c.Quantity);
+            var cartCount = await _context.CartItems
+                .Where(c => c.CustomerId == customerId)
+                .SumAsync(c => c.Quantity);
 
-    return Json(new { success = true, cartCount });
-}
+            return Json(new { success = true, cartCount });
+        }
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateQuantity(int cartItemId, int quantity)

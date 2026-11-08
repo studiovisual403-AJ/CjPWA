@@ -494,7 +494,7 @@
 
     // ---------- events ----------
     function bindEvents() {
-        els.generateBtn?.addEventListener("click", () => fetchReport(1));  
+        els.generateBtn?.addEventListener("click", () => fetchReport(1));
         els.exportExcelBtn?.addEventListener("click", exportCsv);
         els.exportPdfBtn?.addEventListener("click", exportPdf);
 

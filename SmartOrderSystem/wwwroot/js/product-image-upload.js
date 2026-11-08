@@ -170,7 +170,7 @@ function initProductImageUpload() {
 
     // Step 2: once a file is chosen, upload it via AJAX
     document.querySelectorAll('.mi-replace-input').forEach(input => {
-         input.addEventListener('change', function () {
+        input.addEventListener('change', function () {
             if (this.files.length === 0) return;
 
             const file = this.files[0];

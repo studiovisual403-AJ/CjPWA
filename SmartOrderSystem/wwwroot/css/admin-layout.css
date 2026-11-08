@@ -3,12 +3,7 @@
    File: wwwroot/css/admin-layout.css
    ======================================================= */
 
-/* =======================================================
-   LAYOUT
-   Views/Shared/_AdminLayout.cshtml
-   Shared admin shell: reset, sidebar, topbar, content area,
-   footer, overlay, and responsive layout rules.
-   ======================================================= */
+/* ===== Shared: admin layout — Used by: Views/Shared/_AdminLayout.cshtml, Views/_ViewStart.cshtml, Views/Shared/Components/AdminNotificationBell/Default.cshtml, wwwroot/js/admin-sidebar.js, wwwroot/js/admin-notification-bell.js ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {

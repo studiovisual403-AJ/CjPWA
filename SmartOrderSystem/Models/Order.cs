@@ -22,6 +22,9 @@ namespace SmartOrderSystem.Models
         [Column("total_amount")]
         public decimal total_amount { get; set; }
 
+        [Column("shipping_fee")]
+        public decimal shipping_fee { get; set; } = 0m;
+
         [Column("status")]
         public string status { get; set; } = "Pending";
 

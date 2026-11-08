@@ -557,53 +557,53 @@ namespace SmartOrderSystem.Controllers
         }
 
         [HttpPost]
-[ValidateAntiForgeryToken]
-public IActionResult EditProfile(EditProfileViewModel model)
-{
-    var email = HttpContext.Session.GetString("CustomerUser");
-    if (string.IsNullOrEmpty(email))
-    {
-        return RedirectToAction("Login", "Account");
-    }
+        [ValidateAntiForgeryToken]
+        public IActionResult EditProfile(EditProfileViewModel model)
+        {
+            var email = HttpContext.Session.GetString("CustomerUser");
+            if (string.IsNullOrEmpty(email))
+            {
+                return RedirectToAction("Login", "Account");
+            }
 
-    if (!ModelState.IsValid)
-    {
-        return View(model);
-    }
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
 
-    var customer = _context.Customers.FirstOrDefault(c => c.email == email);
-    if (customer == null)
-    {
-        return RedirectToAction("Login", "Account");
-    }
+            var customer = _context.Customers.FirstOrDefault(c => c.email == email);
+            if (customer == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
 
-    if (!string.Equals(customer.email, model.Email, StringComparison.OrdinalIgnoreCase)
-        && _context.Customers.Any(c => c.email == model.Email))
-    {
-        ModelState.AddModelError(nameof(model.Email), "Email is already in use by another account.");
-        return View(model);
-    }
+            if (!string.Equals(customer.email, model.Email, StringComparison.OrdinalIgnoreCase)
+                && _context.Customers.Any(c => c.email == model.Email))
+            {
+                ModelState.AddModelError(nameof(model.Email), "Email is already in use by another account.");
+                return View(model);
+            }
 
-    if (Request.Form.ContainsKey("ReceivePromotions"))
-    {
-        if (model.ReceivePromotions && !customer.receive_promotions)
-            customer.promo_consent_at = DateTime.Now;
-        else if (!model.ReceivePromotions)
-            customer.promo_consent_at = null;
+            if (Request.Form.ContainsKey("ReceivePromotions"))
+            {
+                if (model.ReceivePromotions && !customer.receive_promotions)
+                    customer.promo_consent_at = DateTime.Now;
+                else if (!model.ReceivePromotions)
+                    customer.promo_consent_at = null;
 
-        customer.receive_promotions = model.ReceivePromotions;
-    }
+                customer.receive_promotions = model.ReceivePromotions;
+            }
 
-    customer.full_name = model.FullName;
-    customer.email = model.Email;
-    customer.contact_number = model.ContactNumber;
-    _context.SaveChanges();
+            customer.full_name = model.FullName;
+            customer.email = model.Email;
+            customer.contact_number = model.ContactNumber;
+            _context.SaveChanges();
 
-    HttpContext.Session.SetString("CustomerUser", customer.email);
+            HttpContext.Session.SetString("CustomerUser", customer.email);
 
-    TempData["Success"] = "Profile updated successfully!";
-    return RedirectToAction("MyAccount");
-}
+            TempData["Success"] = "Profile updated successfully!";
+            return RedirectToAction("MyAccount");
+        }
 
         // ============================
         // CHANGE PASSWORD
